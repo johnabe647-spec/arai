@@ -6,3 +6,5 @@ rapidfuzz
 scikit-learn
 reportlab
 supabase
+numpy
+joblib
