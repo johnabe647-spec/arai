@@ -1,0 +1,14 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Streamlit secrets (IMPORTANT - keeps your keys safe)
+.streamlit/secrets.toml
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
