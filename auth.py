@@ -24,6 +24,9 @@ def register_firm(firm_name, email, password):
     if not firm_name or not email or not password:
         return False, "All fields are required"
     
+    # Convert email to lowercase for case-insensitive login
+    email = email.lower()
+    
     if not validate_email(email):
         return False, "Invalid email format"
     
@@ -71,6 +74,9 @@ def login_user(email, password):
     supabase = get_supabase()
     
     try:
+        # Convert email to lowercase for case-insensitive matching
+        email = email.lower()
+        
         # Find user
         user_result = supabase.table("users").select("*, firms(*)").eq("email", email).execute()
         
