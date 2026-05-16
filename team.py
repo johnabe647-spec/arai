@@ -20,20 +20,35 @@ def create_invite(firm_id, email, role, expires_days=7):
     expires_at = datetime.now() + timedelta(days=expires_days)
     
     try:
+        # First, check if team_invites table exists by trying to select
+        try:
+            test_query = supabase.table("team_invites").select("count").limit(1).execute()
+            print("team_invites table accessible")
+        except Exception as table_err:
+            print(f"team_invites table error: {table_err}")
+            return False, f"Database error: {table_err}", None
+        
         # Check if user already exists in the firm
         existing = supabase.table("users").select("*").eq("email", email.lower()).eq("firm_id", firm_id).execute()
         if existing.data:
             return False, "User already belongs to this firm", None
         
-        # Insert the invite
-        result = supabase.table("team_invites").insert({
+        # Prepare insert data
+        insert_data = {
             "firm_id": firm_id,
             "email": email.lower(),
             "role": role,
             "token": token,
             "expires_at": expires_at.isoformat(),
             "used": False
-        }).execute()
+        }
+        
+        print(f"Attempting to insert: {insert_data}")
+        
+        # Insert the invite
+        result = supabase.table("team_invites").insert(insert_data).execute()
+        
+        print(f"Insert result: {result}")
         
         if result.data and len(result.data) > 0:
             # Use your actual Streamlit app URL
@@ -44,6 +59,7 @@ def create_invite(firm_id, email, role, expires_days=7):
             return False, "Failed to create invite - no data returned", None
             
     except Exception as e:
+        print(f"Exception in create_invite: {e}")
         return False, f"Error: {str(e)}", None
 
 def get_invite(token):
@@ -61,6 +77,7 @@ def get_invite(token):
             return invite, None
         return None, "Invite not found or already used"
     except Exception as e:
+        print(f"Error in get_invite: {e}")
         return None, str(e)
 
 def accept_invite(token, user_id):
@@ -71,6 +88,7 @@ def accept_invite(token, user_id):
         supabase.table("team_invites").update({"used": True}).eq("token", token).execute()
         return True, None
     except Exception as e:
+        print(f"Error in accept_invite: {e}")
         return False, str(e)
 
 def get_team_members(firm_id):
@@ -81,6 +99,7 @@ def get_team_members(firm_id):
         result = supabase.table("users").select("*").eq("firm_id", firm_id).execute()
         return result.data if result.data else []
     except Exception as e:
+        print(f"Error in get_team_members: {e}")
         return []
 
 def remove_team_member(user_id, firm_id, current_user_role):
@@ -102,6 +121,7 @@ def remove_team_member(user_id, firm_id, current_user_role):
         supabase.table("users").delete().eq("id", user_id).execute()
         return True, "Team member removed"
     except Exception as e:
+        print(f"Error in remove_team_member: {e}")
         return False, str(e)
 
 def update_user_role(user_id, firm_id, new_role, current_user_role):
@@ -115,4 +135,5 @@ def update_user_role(user_id, firm_id, new_role, current_user_role):
         supabase.table("users").update({"role": new_role}).eq("id", user_id).eq("firm_id", firm_id).execute()
         return True, f"Role updated to {new_role}"
     except Exception as e:
+        print(f"Error in update_user_role: {e}")
         return False, str(e)
