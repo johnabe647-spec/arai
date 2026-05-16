@@ -3,13 +3,15 @@ import pandas as pd
 import tempfile
 import os
 from datetime import datetime
-from supabase import create_client
+from supabase import create_client as supabase_create_client
 from auth import register_firm, login_user, get_firm_audits, save_audit, get_firm_stats, register_user_for_existing_firm
 from report_generator import generate_audit_pdf
 from email_sender import send_report_email
 from team import get_invite, get_team_members, remove_team_member, create_invite
-from client_portal import create_client, get_clients, share_report_with_client
 import plotly.express as px
+
+# Renamed to avoid conflict with client_portal function
+# from client_portal import create_client, get_clients, share_report_with_client
 
 # Page config
 st.set_page_config(
@@ -98,7 +100,7 @@ if not st.session_state.authenticated:
             st.markdown("### 🔐 Login")
             email = st.text_input("Email")
             password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Login", use_container_width=True)
+            submitted = st.form_submit_button("Login", width="stretch")
             
             if submitted:
                 success, message, firm_id, role = login_user(email, password)
@@ -124,7 +126,7 @@ if not st.session_state.authenticated:
                 password = st.text_input("Password", type="password")
                 confirm_password = st.text_input("Confirm Password", type="password")
                 
-                submitted = st.form_submit_button("Join Firm", use_container_width=True)
+                submitted = st.form_submit_button("Join Firm", width="stretch")
                 
                 if submitted:
                     if password != confirm_password:
@@ -149,7 +151,7 @@ if not st.session_state.authenticated:
                 email = st.text_input("Email")
                 password = st.text_input("Password", type="password")
                 confirm_password = st.text_input("Confirm Password", type="password")
-                submitted = st.form_submit_button("Register Firm", use_container_width=True)
+                submitted = st.form_submit_button("Register Firm", width="stretch")
                 
                 if submitted:
                     if password != confirm_password:
@@ -217,16 +219,21 @@ else:
         with col1:
             st.subheader("📈 Match Rate Trend")
             if len(audits) >= 2:
-                df = pd.DataFrame(audits)
-                df['created_at'] = pd.to_datetime(df['created_at'])
-                df = df.sort_values('created_at')
-                
-                fig = px.line(df, x='created_at', y='match_rate', 
-                              title='Match Rate Over Time',
-                              labels={'match_rate': 'Match Rate', 'created_at': 'Date'})
-                fig.update_traces(line_color='#1f77b4', line_width=3)
-                fig.update_layout(showlegend=False, height=300)
-                st.plotly_chart(fig, use_container_width=True)
+                # Filter out None dates
+                valid_audits = [a for a in audits if a.get('created_at')]
+                if len(valid_audits) >= 2:
+                    df = pd.DataFrame(valid_audits)
+                    df['created_at'] = pd.to_datetime(df['created_at'])
+                    df = df.sort_values('created_at')
+                    
+                    fig = px.line(df, x='created_at', y='match_rate', 
+                                  title='Match Rate Over Time',
+                                  labels={'match_rate': 'Match Rate', 'created_at': 'Date'})
+                    fig.update_traces(line_color='#1f77b4', line_width=3)
+                    fig.update_layout(showlegend=False, height=300)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Run more audits to see trend data")
             else:
                 st.info("Run at least 2 audits to see trend data")
         
@@ -265,7 +272,15 @@ else:
         if audits:
             recent = audits[:5]
             for audit in recent:
-                created = pd.to_datetime(audit['created_at']).strftime('%b %d, %Y')
+                # Handle null created_at
+                if audit.get('created_at'):
+                    try:
+                        created = pd.to_datetime(audit['created_at']).strftime('%b %d, %Y')
+                    except:
+                        created = "Date unknown"
+                else:
+                    created = "Date unknown"
+                
                 match_rate = audit.get('match_rate', 0)
                 fraud_risk = audit.get('fraud_risk', 0)
                 
@@ -292,13 +307,13 @@ else:
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("📄 Run New Audit", use_container_width=True):
+            if st.button("📄 Run New Audit", width="stretch"):
                 st.session_state.page = "New Audit"
                 st.session_state.audit_results = None
                 st.rerun()
         
         with col2:
-            if st.button("📜 View Audit History", use_container_width=True):
+            if st.button("📜 View Audit History", width="stretch"):
                 st.session_state.page = "Audit History"
                 st.rerun()
     
@@ -532,7 +547,7 @@ else:
     elif st.session_state.page == "Settings":
         st.markdown("### ⚙️ Settings")
         
-        tab1, tab2, tab3 = st.tabs(["Team Management", "Firm Settings", "Client Management"])
+        tab1, tab2 = st.tabs(["Team Management", "Firm Settings"])
         
         # Team Management Tab
         with tab1:
@@ -596,79 +611,6 @@ else:
             st.markdown("#### 🏢 Firm Settings")
             st.info("Coming soon: Subscription management, billing, API keys")
             st.caption(f"Firm ID: {st.session_state.firm_id}")
-        
-        # Client Management Tab
-        with tab3:
-            st.markdown("#### 👤 Client Management")
-            
-            if st.session_state.user_role == "owner":
-                # Show existing clients
-                clients = get_clients(st.session_state.firm_id)
-                if clients:
-                    st.markdown("**Your Clients:**")
-                    for c in clients:
-                        st.write(f"- {c['client_name']} ({c['client_company']}) - {c['client_email']}")
-                else:
-                    st.info("No clients added yet.")
-                
-                st.markdown("---")
-                st.markdown("#### ➕ Add New Client")
-                
-                with st.form("add_client_form"):
-                    client_name = st.text_input("Client Contact Name")
-                    client_company = st.text_input("Company Name")
-                    client_email = st.text_input("Email Address")
-                    client_password = st.text_input("Temporary Password", type="password")
-                    submitted = st.form_submit_button("Create Client Account")
-                    
-                    if submitted:
-                        if client_name and client_email and client_password:
-                            success, result = create_client(
-                                st.session_state.firm_id,
-                                client_name,
-                                client_email,
-                                client_company,
-                                client_password
-                            )
-                            if success:
-                                st.success(f"Client {client_name} created! They can login at the client portal.")
-                                st.rerun()
-                            else:
-                                st.error(f"Error: {result}")
-                        else:
-                            st.warning("Please fill in all fields")
-                
-                # Share audit with client
-                st.markdown("---")
-                st.markdown("#### 📤 Share Audit Report with Client")
-                
-                audits = get_firm_audits(st.session_state.firm_id, limit=20)
-                clients_list = get_clients(st.session_state.firm_id)
-                
-                if audits and clients_list:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        audit_options = {f"{a['filename']} ({a['created_at'][:10]})": a['id'] for a in audits}
-                        selected_audit = st.selectbox("Select Audit", list(audit_options.keys()))
-                    with col2:
-                        client_options = {c['client_name']: c['id'] for c in clients_list}
-                        selected_client = st.selectbox("Select Client", list(client_options.keys()))
-                    
-                    if st.button("Share Report"):
-                        audit_id = audit_options[selected_audit]
-                        client_id = client_options[selected_client]
-                        success, message = share_report_with_client(client_id, audit_id)
-                        if success:
-                            st.success(f"Report shared with {selected_client}")
-                        else:
-                            st.error(f"Error: {message}")
-                else:
-                    if not audits:
-                        st.info("Run some audits first")
-                    if not clients_list:
-                        st.info("Add clients first")
-            else:
-                st.info("Client management is only available to firm owners.")
     
     st.markdown("---")
     st.caption("© 2025 ARAI | Audit Risk & AI Intelligence | Finance Done Smarter")
