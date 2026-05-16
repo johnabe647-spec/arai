@@ -40,6 +40,7 @@ def get_clients(firm_id):
         result = supabase.table("clients").select("*").eq("firm_id", firm_id).execute()
         return result.data if result.data else []
     except Exception as e:
+        print(f"Error in get_clients: {e}")
         return []
 
 def get_client_reports(client_id):
@@ -50,6 +51,7 @@ def get_client_reports(client_id):
         result = supabase.table("client_reports").select("*, audits(*)").eq("client_id", client_id).execute()
         return result.data if result.data else []
     except Exception as e:
+        print(f"Error in get_client_reports: {e}")
         return []
 
 def share_report_with_client(client_id, audit_id):
