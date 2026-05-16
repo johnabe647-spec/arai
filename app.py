@@ -8,7 +8,7 @@ from auth import register_firm, login_user, get_firm_audits, save_audit, get_fir
 from report_generator import generate_audit_pdf
 from email_sender import send_report_email
 from team import get_invite, get_team_members, remove_team_member, create_invite
-# from client_portal import create_client, get_clients, share_report_with_client
+from client_portal import create_client, get_clients, share_report_with_client
 import plotly.express as px
 
 # Page config
