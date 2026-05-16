@@ -20,11 +20,15 @@ def create_invite(firm_id, email, role, expires_days=7):
     expires_at = datetime.now() + timedelta(days=expires_days)
     
     try:
+        # First, check if team_invites table exists and has correct schema
+        st.write(f"Debug: Creating invite for firm_id={firm_id}, email={email}, role={role}")
+        
         # Check if user already exists in the firm
         existing = supabase.table("users").select("*").eq("email", email.lower()).eq("firm_id", firm_id).execute()
         if existing.data:
             return False, "User already belongs to this firm", None
         
+        # Insert the invite
         result = supabase.table("team_invites").insert({
             "firm_id": firm_id,
             "email": email.lower(),
@@ -34,14 +38,20 @@ def create_invite(firm_id, email, role, expires_days=7):
             "used": False
         }).execute()
         
-        if result.data:
+        st.write(f"Debug: Insert result = {result.data}")
+        
+        if result.data and len(result.data) > 0:
             # Use your actual Streamlit app URL
             app_url = "https://johnabe647-spec-arai.streamlit.app"
             invite_url = f"{app_url}?invite={token}"
             return True, invite_url, result.data[0]
-        return False, "Failed to create invite", None
+        else:
+            st.write(f"Debug: No data returned from insert")
+            return False, "Failed to create invite - no data returned", None
+            
     except Exception as e:
-        return False, str(e), None
+        st.write(f"Debug: Exception - {str(e)}")
+        return False, f"Error: {str(e)}", None
 
 def get_invite(token):
     """Get invite details by token"""
@@ -78,6 +88,7 @@ def get_team_members(firm_id):
         result = supabase.table("users").select("*").eq("firm_id", firm_id).execute()
         return result.data if result.data else []
     except Exception as e:
+        st.write(f"Debug: Error getting team members - {str(e)}")
         return []
 
 def remove_team_member(user_id, firm_id, current_user_role):
