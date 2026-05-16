@@ -8,3 +8,4 @@ reportlab
 supabase
 numpy
 joblib
+yagmail
