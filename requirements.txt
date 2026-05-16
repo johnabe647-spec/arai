@@ -5,3 +5,4 @@ pdfplumber
 reportlab
 supabase
 yagmail
+plotly

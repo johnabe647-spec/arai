@@ -8,6 +8,8 @@ from auth import register_firm, login_user, get_firm_audits, save_audit, get_fir
 from report_generator import generate_audit_pdf
 from email_sender import send_report_email
 from team import get_invite, get_team_members, remove_team_member, create_invite
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Page config
 st.set_page_config(
@@ -187,13 +189,96 @@ else:
     if st.session_state.page == "Dashboard":
         st.markdown(f"### Welcome to ARAI")
         
+        # Get firm statistics
         stats = get_firm_stats(st.session_state.firm_id)
+        audits = get_firm_audits(st.session_state.firm_id, limit=50)
         
+        # Top metrics row
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total Audits", stats["total_audits"])
         col2.metric("Avg Match Rate", f"{stats['avg_match_rate']:.1%}")
         col3.metric("Avg Fraud Risk", f"{stats['avg_fraud_risk']:.0f}%")
         col4.metric("Time Saved", f"{stats['total_time_saved']} hours")
+        
+        st.markdown("---")
+        
+        # Charts Row
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📈 Match Rate Trend")
+            if len(audits) >= 2:
+                df = pd.DataFrame(audits)
+                df['created_at'] = pd.to_datetime(df['created_at'])
+                df = df.sort_values('created_at')
+                
+                fig = px.line(df, x='created_at', y='match_rate', 
+                              title='Match Rate Over Time',
+                              labels={'match_rate': 'Match Rate', 'created_at': 'Date'})
+                fig.update_traces(line_color='#1f77b4', line_width=3)
+                fig.update_layout(showlegend=False, height=300)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Run at least 2 audits to see trend data")
+        
+        with col2:
+            st.subheader("🎯 Fraud Risk Distribution")
+            if len(audits) >= 3:
+                # Categorize fraud risk
+                risk_levels = []
+                for a in audits:
+                    risk = a.get('fraud_risk', 0)
+                    if risk >= 70:
+                        risk_levels.append('High')
+                    elif risk >= 40:
+                        risk_levels.append('Medium')
+                    else:
+                        risk_levels.append('Low')
+                
+                risk_df = pd.DataFrame({'Risk Level': risk_levels})
+                risk_counts = risk_df['Risk Level'].value_counts().reset_index()
+                risk_counts.columns = ['Risk Level', 'Count']
+                
+                colors = {'High': '#ff6b6b', 'Medium': '#ffa500', 'Low': '#4ecdc4'}
+                fig = px.bar(risk_counts, x='Risk Level', y='Count', 
+                             title='Audits by Risk Level',
+                             color='Risk Level',
+                             color_discrete_map=colors)
+                fig.update_layout(showlegend=False, height=300)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Run at least 3 audits to see risk distribution")
+        
+        st.markdown("---")
+        
+        # Recent Activity Feed
+        st.subheader("📋 Recent Activity")
+        
+        if audits:
+            recent = audits[:5]
+            for audit in recent:
+                created = pd.to_datetime(audit['created_at']).strftime('%b %d, %Y')
+                match_rate = audit.get('match_rate', 0)
+                fraud_risk = audit.get('fraud_risk', 0)
+                
+                # Determine color based on match rate
+                if match_rate >= 0.95:
+                    color = "🟢"
+                elif match_rate >= 0.85:
+                    color = "🟡"
+                else:
+                    color = "🔴"
+                
+                st.markdown(f"""
+                <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                    <strong>{color} {audit['filename']}</strong><br>
+                    📅 {created} &nbsp;|&nbsp;
+                    📊 Match Rate: {match_rate:.1%} &nbsp;|&nbsp;
+                    ⚠️ Fraud Risk: {fraud_risk:.0f}%
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No audits yet. Run your first audit!")
         
         st.markdown("---")
         st.markdown("### Quick Actions")
