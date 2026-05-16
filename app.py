@@ -179,6 +179,15 @@ else:
         st.session_state.page = page
         
         st.markdown("---")
+        
+        # Client Portal Link
+        st.markdown("### 🔗 Client Portal")
+        st.markdown("Share this link with your clients:")
+        st.code("https://arai-client-portal.streamlit.app", language="text")
+        st.caption("Clients can view their audit reports here")
+        
+        st.markdown("---")
+        
         if st.button("Logout"):
             for key in ["authenticated", "firm_id", "user_email", "user_role", "audit_results"]:
                 if key in st.session_state:
