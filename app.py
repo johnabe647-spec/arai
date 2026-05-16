@@ -4,7 +4,10 @@ import tempfile
 import os
 from datetime import datetime
 from supabase import create_client
-from auth import register_firm, login_user, get_firm_audits, save_audit, get_firm_stats, get_supabase
+from auth import register_firm, login_user, get_firm_audits, save_audit, get_firm_stats, register_user_for_existing_firm
+from report_generator import generate_audit_pdf
+from email_sender import send_report_email
+from team import get_invite, get_team_members, remove_team_member, create_invite
 
 # Page config
 st.set_page_config(
@@ -55,11 +58,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header
-st.markdown('<p class="main-header">🔍 ARAI</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Audit Risk & AI Intelligence | Client Portal</p>', unsafe_allow_html=True)
-st.markdown("---")
-
 # Initialize session state
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -67,8 +65,27 @@ if "firm_id" not in st.session_state:
     st.session_state.firm_id = None
 if "user_email" not in st.session_state:
     st.session_state.user_email = None
+if "user_role" not in st.session_state:
+    st.session_state.user_role = None
 if "page" not in st.session_state:
     st.session_state.page = "Dashboard"
+if "audit_results" not in st.session_state:
+    st.session_state.audit_results = None
+
+# Check for invite token in URL
+query_params = st.query_params
+if "invite" in query_params:
+    token = query_params["invite"]
+    invite, error = get_invite(token)
+    
+    if invite and not error:
+        st.session_state.pending_invite = invite
+        st.info(f"✨ You've been invited to join **{invite['firms']['name']}** as a **{invite['role']}**. Please register below.")
+
+# Header
+st.markdown('<p class="main-header">🔍 ARAI</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Audit Risk & AI Intelligence | Client Portal</p>', unsafe_allow_html=True)
+st.markdown("---")
 
 # Authentication
 if not st.session_state.authenticated:
@@ -94,36 +111,74 @@ if not st.session_state.authenticated:
     
     with tab2:
         with st.form("register_form"):
-            st.markdown("### 📝 Register Your Firm")
-            firm_name = st.text_input("Firm Name")
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
-            confirm_password = st.text_input("Confirm Password", type="password")
-            submitted = st.form_submit_button("Register", use_container_width=True)
+            st.markdown("### 📝 Register")
             
-            if submitted:
-                if password != confirm_password:
-                    st.error("Passwords do not match")
-                else:
-                    success, result = register_firm(firm_name, email, password)
-                    if success:
-                        st.success("Registration successful! Please login.")
+            if "pending_invite" in st.session_state:
+                invite = st.session_state.pending_invite
+                st.info(f"You are joining: **{invite['firms']['name']}** as a **{invite['role']}**")
+                
+                firm_name = st.text_input("Firm Name", value=invite['firms']['name'], disabled=True)
+                email = st.text_input("Email", value=invite['email'], disabled=True)
+                password = st.text_input("Password", type="password")
+                confirm_password = st.text_input("Confirm Password", type="password")
+                
+                submitted = st.form_submit_button("Join Firm", use_container_width=True)
+                
+                if submitted:
+                    if password != confirm_password:
+                        st.error("Passwords do not match")
+                    elif len(password) < 6:
+                        st.error("Password must be at least 6 characters")
                     else:
-                        st.error(result)
+                        success, result = register_user_for_existing_firm(
+                            email, password, 
+                            invite['firms']['id'], 
+                            invite['role'],
+                            token
+                        )
+                        if success:
+                            st.success("Registration successful! Please login.")
+                            del st.session_state.pending_invite
+                            st.rerun()
+                        else:
+                            st.error(result)
+            else:
+                firm_name = st.text_input("Firm Name")
+                email = st.text_input("Email")
+                password = st.text_input("Password", type="password")
+                confirm_password = st.text_input("Confirm Password", type="password")
+                submitted = st.form_submit_button("Register Firm", use_container_width=True)
+                
+                if submitted:
+                    if password != confirm_password:
+                        st.error("Passwords do not match")
+                    elif len(password) < 6:
+                        st.error("Password must be at least 6 characters")
+                    else:
+                        success, result = register_firm(firm_name, email, password)
+                        if success:
+                            st.success("Registration successful! Please login.")
+                        else:
+                            st.error(result)
 
 else:
     # Sidebar navigation
     with st.sidebar:
-        st.markdown(f"### {st.session_state.user_email}")
-        st.markdown(f"Firm ID: {st.session_state.firm_id}")
+        st.markdown(f"**User:** {st.session_state.user_email}")
+        st.markdown(f"**Role:** {st.session_state.user_role}")
+        st.markdown(f"**Firm ID:** {st.session_state.firm_id}")
         st.markdown("---")
         
         page = st.radio("Navigation", ["Dashboard", "New Audit", "Audit History", "Settings"])
+        
+        if page != "New Audit" and st.session_state.page == "New Audit":
+            st.session_state.audit_results = None
+        
         st.session_state.page = page
         
         st.markdown("---")
         if st.button("Logout"):
-            for key in ["authenticated", "firm_id", "user_email", "user_role"]:
+            for key in ["authenticated", "firm_id", "user_email", "user_role", "audit_results"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
@@ -132,7 +187,6 @@ else:
     if st.session_state.page == "Dashboard":
         st.markdown(f"### Welcome to ARAI")
         
-        # Get firm statistics
         stats = get_firm_stats(st.session_state.firm_id)
         
         col1, col2, col3, col4 = st.columns(4)
@@ -148,6 +202,7 @@ else:
         with col1:
             if st.button("📄 Run New Audit", use_container_width=True):
                 st.session_state.page = "New Audit"
+                st.session_state.audit_results = None
                 st.rerun()
         
         with col2:
@@ -159,104 +214,213 @@ else:
     elif st.session_state.page == "New Audit":
         st.markdown("### 📄 New Audit")
         
-        col1, col2 = st.columns(2)
+        if st.session_state.audit_results is None:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                bank_file = st.file_uploader(
+                    "Bank Statement (Excel or PDF)",
+                    type=['xlsx', 'xls', 'pdf'],
+                    key="bank"
+                )
+            
+            with col2:
+                ledger_file = st.file_uploader(
+                    "Ledger (Excel only)",
+                    type=['xlsx', 'xls'],
+                    key="ledger"
+                )
+            
+            if bank_file and ledger_file:
+                if st.button("🚀 Run Audit", type="primary"):
+                    with st.spinner("Running AI-powered audit..."):
+                        try:
+                            from reconciler import reconcile
+                            from anomaly_detector import detect_anomalies
+                            from predictor import get_predictor
+                            
+                            predictor = get_predictor()
+                            
+                            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_bank:
+                                tmp_bank.write(bank_file.getvalue())
+                                bank_path = tmp_bank.name
+                            
+                            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_ledger:
+                                tmp_ledger.write(ledger_file.getvalue())
+                                ledger_path = tmp_ledger.name
+                            
+                            bank_filename = bank_file.name.lower()
+                            
+                            if bank_filename.endswith('.pdf'):
+                                from pdf_parser import parse_bank_statement
+                                bank_df = parse_bank_statement(bank_path)
+                            else:
+                                bank_df = pd.read_excel(bank_path)
+                                bank_df.columns = [col.lower() for col in bank_df.columns]
+                                if 'amount' in bank_df.columns:
+                                    bank_df['amount'] = bank_df['amount'].abs()
+                            
+                            ledger_df = pd.read_excel(ledger_path)
+                            ledger_df.columns = [col.lower() for col in ledger_df.columns]
+                            if 'amount' in ledger_df.columns:
+                                ledger_df['amount'] = ledger_df['amount'].abs()
+                            
+                            result = reconcile(bank_df, ledger_df)
+                            anomalies = detect_anomalies(bank_df)
+                            fraud_risk = predictor.predict_fraud_risk(bank_df)
+                            predicted_hours = predictor.predict_audit_time(bank_df)
+                            problem_areas = predictor.predict_problem_areas(bank_df)
+                            resources = predictor.suggest_resource_allocation(fraud_risk, predicted_hours, problem_areas)
+                            
+                            st.session_state.audit_results = {
+                                'result': result,
+                                'anomalies': anomalies,
+                                'fraud_risk': fraud_risk,
+                                'predicted_hours': predicted_hours,
+                                'problem_areas': problem_areas,
+                                'resources': resources,
+                                'bank_filename': bank_file.name
+                            }
+                            
+                            audit_data_summary = {
+                                "match_rate": result['summary']['match_rate'],
+                                "matched": result['summary']['matched'],
+                                "unmatched_bank": result['summary']['unmatched_bank'],
+                                "unmatched_ledger": result['summary']['unmatched_ledger'],
+                                "anomalies": len(anomalies),
+                                "problem_areas": problem_areas
+                            }
+                            
+                            save_audit(
+                                firm_id=st.session_state.firm_id,
+                                filename=bank_file.name,
+                                match_rate=result['summary']['match_rate'],
+                                fraud_risk=fraud_risk,
+                                predicted_hours=predicted_hours,
+                                audit_data=audit_data_summary
+                            )
+                            
+                            os.unlink(bank_path)
+                            os.unlink(ledger_path)
+                            
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Error: {e}")
         
-        with col1:
-            bank_file = st.file_uploader(
-                "Bank Statement (Excel or PDF)",
-                type=['xlsx', 'xls', 'pdf'],
-                key="bank"
-            )
-        
-        with col2:
-            ledger_file = st.file_uploader(
-                "Ledger (Excel only)",
-                type=['xlsx', 'xls'],
-                key="ledger"
-            )
-        
-        if bank_file and ledger_file:
-            if st.button("🚀 Run Audit", type="primary"):
-                with st.spinner("Running AI-powered audit..."):
-                    try:
-                        from reconciler import reconcile
-                        from anomaly_detector import detect_anomalies
-                        from predictor import get_predictor
-                        
-                        predictor = get_predictor()
-                        
-                        # Save uploaded files
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_bank:
-                            tmp_bank.write(bank_file.getvalue())
-                            bank_path = tmp_bank.name
-                        
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_ledger:
-                            tmp_ledger.write(ledger_file.getvalue())
-                            ledger_path = tmp_ledger.name
-                        
-                        # Load bank file
-                        bank_filename = bank_file.name.lower()
-                        
-                        if bank_filename.endswith('.pdf'):
-                            from pdf_parser import parse_bank_statement
-                            bank_df = parse_bank_statement(bank_path)
-                        else:
-                            bank_df = pd.read_excel(bank_path)
-                            bank_df.columns = [col.lower() for col in bank_df.columns]
-                            if 'amount' in bank_df.columns:
-                                bank_df['amount'] = bank_df['amount'].abs()
-                        
-                        # Load ledger
-                        ledger_df = pd.read_excel(ledger_path)
-                        ledger_df.columns = [col.lower() for col in ledger_df.columns]
-                        if 'amount' in ledger_df.columns:
-                            ledger_df['amount'] = ledger_df['amount'].abs()
-                        
-                        # Run reconciliation
-                        result = reconcile(bank_df, ledger_df)
-                        
-                        # Detect anomalies
-                        anomalies = detect_anomalies(bank_df)
-                        
-                        # Predictive analytics
-                        fraud_risk = predictor.predict_fraud_risk(bank_df)
-                        predicted_hours = predictor.predict_audit_time(bank_df)
-                        problem_areas = predictor.predict_problem_areas(bank_df)
-                        
-                        # Save to database
-                        audit_data = {
-                            "match_rate": result['summary']['match_rate'],
-                            "matched": result['summary']['matched'],
-                            "unmatched_bank": result['summary']['unmatched_bank'],
-                            "unmatched_ledger": result['summary']['unmatched_ledger'],
-                            "anomalies": len(anomalies),
-                            "problem_areas": problem_areas
-                        }
-                        
-                        save_audit(
-                            firm_id=st.session_state.firm_id,
-                            filename=bank_file.name,
-                            match_rate=result['summary']['match_rate'],
-                            fraud_risk=fraud_risk,
-                            predicted_hours=predicted_hours,
-                            audit_data=audit_data
-                        )
-                        
-                        # Display results
-                        st.success(f"✅ Audit complete! Match rate: {result['summary']['match_rate']:.1%}")
-                        
-                        m1, m2, m3, m4 = st.columns(4)
-                        m1.metric("Matched", result['summary']['matched'])
-                        m2.metric("Unmatched Bank", result['summary']['unmatched_bank'])
-                        m3.metric("Unmatched Ledger", result['summary']['unmatched_ledger'])
-                        m4.metric("Fraud Risk", f"{fraud_risk:.0f}%")
-                        
-                        # Clean up
-                        os.unlink(bank_path)
-                        os.unlink(ledger_path)
-                        
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+        if st.session_state.audit_results is not None:
+            results = st.session_state.audit_results
+            result = results['result']
+            anomalies = results['anomalies']
+            fraud_risk = results['fraud_risk']
+            predicted_hours = results['predicted_hours']
+            problem_areas = results['problem_areas']
+            resources = results['resources']
+            
+            st.success(f"✅ Audit complete! Match rate: {result['summary']['match_rate']:.1%}")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Matched", result['summary']['matched'])
+            col2.metric("Unmatched Bank", result['summary']['unmatched_bank'])
+            col3.metric("Unmatched Ledger", result['summary']['unmatched_ledger'])
+            col4.metric("Fraud Risk", f"{fraud_risk:.0f}%")
+            
+            st.markdown("---")
+            st.subheader("🤖 AI Predictions")
+            
+            if fraud_risk >= 70:
+                st.markdown(f'<div class="risk-high">🔴 HIGH RISK: {fraud_risk:.0f}% fraud probability</div>', unsafe_allow_html=True)
+            elif fraud_risk >= 40:
+                st.markdown(f'<div class="risk-medium">🟡 MEDIUM RISK: {fraud_risk:.0f}% fraud probability</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="risk-low">🟢 LOW RISK: {fraud_risk:.0f}% fraud probability</div>', unsafe_allow_html=True)
+            
+            st.metric("Predicted Audit Time", f"{predicted_hours:.1f} hours")
+            
+            st.markdown("---")
+            st.subheader("🎯 Problem Areas Identified")
+            for area, risk in list(problem_areas.items())[:4]:
+                st.progress(risk/100)
+                st.write(f"**{area}** - {risk:.0f}% risk")
+            
+            st.markdown("---")
+            st.subheader("👥 Resource Allocation Recommendations")
+            for rec in resources[:3]:
+                st.info(f"**{rec['area']}** → Assign to: {rec['assigned_to']}")
+            
+            if not anomalies.empty:
+                st.markdown("---")
+                st.subheader("🚨 Anomalies Detected")
+                st.dataframe(anomalies[['date', 'amount', 'description', 'risk_level']].head(5))
+            
+            tab1, tab2 = st.tabs(["Unmatched Bank", "Unmatched Ledger"])
+            with tab1:
+                if not result['unmatched_bank'].empty:
+                    st.dataframe(result['unmatched_bank'][['date', 'amount', 'description']])
+                else:
+                    st.success("✅ All bank transactions matched!")
+            
+            with tab2:
+                if not result['unmatched_ledger'].empty:
+                    st.dataframe(result['unmatched_ledger'][['date', 'amount', 'description']])
+                else:
+                    st.success("✅ All ledger entries matched!")
+            
+            # Email Section
+            st.markdown("---")
+            st.subheader("📧 Email Report to Client")
+            
+            with st.form(key="email_form"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    client_email = st.text_input("Client Email Address", placeholder="client@company.com")
+                with col2:
+                    client_name = st.text_input("Client Name", placeholder="Client Company Name")
+                
+                send_button = st.form_submit_button("📧 Send Report via Email", type="secondary")
+                
+                if send_button:
+                    if client_email and client_name:
+                        with st.spinner("Generating and sending report..."):
+                            pdf_path = f"temp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                            
+                            audit_summary = {
+                                "match_rate": result['summary']['match_rate'],
+                                "matched": result['summary']['matched'],
+                                "unmatched_bank": result['summary']['unmatched_bank'],
+                                "unmatched_ledger": result['summary']['unmatched_ledger'],
+                                "anomalies": len(anomalies),
+                                "fraud_risk": fraud_risk,
+                                "problem_areas": problem_areas
+                            }
+                            
+                            generate_audit_pdf(
+                                firm_name=st.session_state.user_email.split('@')[0],
+                                client_name=client_name,
+                                audit_data=audit_summary,
+                                output_path=pdf_path
+                            )
+                            
+                            success, message = send_report_email(
+                                recipient_email=client_email,
+                                recipient_name=client_name,
+                                firm_name=st.session_state.user_email.split('@')[0],
+                                pdf_path=pdf_path,
+                                audit_summary=audit_summary
+                            )
+                            
+                            os.unlink(pdf_path)
+                            
+                            if success:
+                                st.success(f"✅ Report sent to {client_email}")
+                            else:
+                                st.error(f"Failed to send: {message}")
+                    else:
+                        st.warning("Please enter both client email and name")
+            
+            if st.button("🔄 Run Another Audit", type="primary"):
+                st.session_state.audit_results = None
+                st.rerun()
     
     # Audit History Page
     elif st.session_state.page == "Audit History":
@@ -275,7 +439,69 @@ else:
     # Settings Page
     elif st.session_state.page == "Settings":
         st.markdown("### ⚙️ Settings")
-        st.info("Coming soon: Firm settings, team member invitations, subscription management")
+        
+        tab1, tab2 = st.tabs(["Team Management", "Firm Settings"])
+        
+        with tab1:
+            st.markdown("#### 👥 Team Members")
+            
+            if st.session_state.user_role == "owner":
+                team_members = get_team_members(st.session_state.firm_id)
+                
+                if team_members:
+                    st.markdown("**Current Team:**")
+                    for member in team_members:
+                        col1, col2, col3 = st.columns([2, 2, 1])
+                        with col1:
+                            st.write(member["email"])
+                        with col2:
+                            st.write(f"Role: {member['role']}")
+                        with col3:
+                            if member["role"] != "owner":
+                                if st.button(f"Remove", key=f"remove_{member['id']}"):
+                                    success, message = remove_team_member(
+                                        member["id"], 
+                                        st.session_state.firm_id,
+                                        st.session_state.user_role
+                                    )
+                                    if success:
+                                        st.success(message)
+                                        st.rerun()
+                                    else:
+                                        st.error(message)
+                
+                st.markdown("---")
+                st.markdown("#### ✉️ Invite New Team Member")
+                
+                with st.form("invite_form"):
+                    invite_email = st.text_input("Email Address", placeholder="colleague@firm.com")
+                    invite_role = st.selectbox("Role", ["staff", "manager"])
+                    submitted = st.form_submit_button("Generate Invite Link")
+                    
+                    if submitted and invite_email:
+                        success, invite_url, result = create_invite(
+                            st.session_state.firm_id,
+                            invite_email,
+                            invite_role
+                        )
+                        if success:
+                            st.success("Invite link generated!")
+                            st.code(invite_url, language="text")
+                            st.caption("Copy this link and send it to your team member. Link expires in 7 days.")
+                        else:
+                            st.error(f"Failed to create invite: {result}")
+            else:
+                st.info("Team management is only available to firm owners.")
+                team_members = get_team_members(st.session_state.firm_id)
+                if team_members:
+                    st.markdown("**Your Team:**")
+                    for member in team_members:
+                        st.write(f"- {member['email']} ({member['role']})")
+        
+        with tab2:
+            st.markdown("#### 🏢 Firm Settings")
+            st.info("Coming soon: Subscription management, billing, API keys")
+            st.caption(f"Firm ID: {st.session_state.firm_id}")
     
     st.markdown("---")
     st.caption("© 2025 ARAI | Audit Risk & AI Intelligence | Finance Done Smarter")
