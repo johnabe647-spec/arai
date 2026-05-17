@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client
 from datetime import datetime, timedelta
 import pandas as pd
+import plotly.express as px  # Add this import
 
 def get_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -11,9 +12,8 @@ def log_activity(firm_id, user_email, action, details=None):
     supabase = get_supabase()
     
     try:
-        # Get IP and user agent from Streamlit (limited)
-        ip_address = st.request.headers.get('X-Forwarded-For', 'unknown') if hasattr(st, 'request') else 'unknown'
-        user_agent = st.request.headers.get('User-Agent', 'unknown') if hasattr(st, 'request') else 'unknown'
+        ip_address = 'unknown'
+        user_agent = 'unknown'
         
         result = supabase.table("activity_log").insert({
             "firm_id": firm_id,
@@ -56,13 +56,11 @@ def get_usage_stats(firm_id, days=30):
             "peak_hours": {}
         }
     
-    # Create DataFrame
     df = pd.DataFrame(logs)
     df['created_at'] = pd.to_datetime(df['created_at'])
     df['date'] = df['created_at'].dt.date
     df['hour'] = df['created_at'].dt.hour
     
-    # Statistics
     stats = {
         "total_actions": len(df),
         "unique_users": df['user_email'].unique().tolist(),
@@ -144,7 +142,6 @@ def display_activity_dashboard(firm_id):
     # Recent activity table
     st.subheader("📋 Recent Activity Log")
     
-    # Format for display
     display_logs = []
     for log in logs[:50]:
         display_logs.append({
