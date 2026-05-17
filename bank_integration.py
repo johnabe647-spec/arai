@@ -84,9 +84,19 @@ def display_bank_integration_dashboard(firm_id, user_role):
     st.markdown("### 🏦 Bank Integration")
     st.markdown("Connect directly to your clients' bank accounts for real-time transaction data.")
     
-    # Check if user has access (Enterprise only)
-    from subscription import check_feature_access
-    if not check_feature_access(firm_id, "api_access"):
+    # Get current subscription tier directly from database
+    supabase = get_supabase()
+    result = supabase.table("firms").select("subscription_tier").eq("id", firm_id).execute()
+    
+    if result.data:
+        subscription_tier = result.data[0].get("subscription_tier", "free")
+    else:
+        subscription_tier = "free"
+    
+    st.write(f"Debug: Your subscription tier is {subscription_tier}")  # Debug line - remove after testing
+    
+    # Check if user has Enterprise plan
+    if subscription_tier != "enterprise":
         st.info("🔌 Bank API integration is available on Enterprise plans ($599/month).")
         st.markdown("**Benefits of Bank Integration:**")
         st.markdown("- Real-time transaction sync")
@@ -94,12 +104,12 @@ def display_bank_integration_dashboard(firm_id, user_role):
         st.markdown("- Automated daily updates")
         st.markdown("- Reduced manual work")
         
-        # Use session state to redirect
         if st.button("💳 Upgrade to Enterprise", key="upgrade_bank_integration"):
             st.session_state.settings_tab_index = 2  # Subscription tab index
             st.rerun()
         return
     
+    # Show the full bank integration interface for Enterprise users
     tabs = st.tabs(["Connected Banks", "Add New Bank", "Sync History"])
     
     # Connected Banks Tab
