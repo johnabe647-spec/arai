@@ -14,6 +14,7 @@ from branding import get_firm_branding, update_branding, save_firm_logo, remove_
 from analytics import display_analytics_dashboard, calculate_time_saved, calculate_cost_savings
 from scheduler import create_schedule, get_schedules, display_schedules, delete_schedule
 from activity_logger import log_activity, display_activity_dashboard
+from api_manager import display_api_dashboard
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -846,7 +847,7 @@ else:
     elif st.session_state.page == "Settings":
         st.markdown("### ⚙️ Settings")
         
-        tab1, tab2, tab3, tab4 = st.tabs(["Team Management", "Firm Settings", "Subscription", "Branding"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["Team Management", "Firm Settings", "Subscription", "Branding", "API"])
         
         # Team Management Tab
         with tab1:
@@ -1068,6 +1069,23 @@ else:
                 st.markdown("- Custom brand colors")
                 st.markdown("- Custom footer with your contact details")
                 st.markdown("- White-label reports (no ARAI branding)")
+                
+                if st.button("Upgrade to Enterprise"):
+                    st.session_state.page = "Settings"
+                    st.rerun()
+        
+        # API Tab
+        with tab5:
+            if check_feature_access(st.session_state.firm_id, "api_access"):
+                display_api_dashboard(st.session_state.firm_id)
+            else:
+                st.info("🔌 API access is available on Enterprise plans ($599/month).")
+                st.markdown("**Features include:**")
+                st.markdown("- REST API for programmatic access")
+                st.markdown("- Webhooks for real-time notifications")
+                st.markdown("- API keys with granular permissions")
+                st.markdown("- Usage analytics dashboard")
+                st.markdown("- Dedicated API support")
                 
                 if st.button("Upgrade to Enterprise"):
                     st.session_state.page = "Settings"
