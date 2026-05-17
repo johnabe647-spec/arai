@@ -32,13 +32,11 @@ def webhook():
     event = request.json
     
     if event['meta']['event_name'] == 'order_created':
-        # New subscription created
         data = event['data']['attributes']
         custom_data = data.get('custom', {})
         firm_id = custom_data.get('firm_id')
         
         if firm_id:
-            # Determine plan from variant
             variant_id = data['first_order_item']['variant_id']
             
             if variant_id == os.environ.get("PROFESSIONAL_VARIANT_ID"):
@@ -53,14 +51,10 @@ def webhook():
             }).eq("id", int(firm_id)).execute()
     
     elif event['meta']['event_name'] == 'subscription_updated':
-        # Subscription status changed
-        data = event['data']['attributes']
-        # Handle status updates
+        pass
     
     elif event['meta']['event_name'] == 'subscription_cancelled':
-        # Subscription cancelled
-        data = event['data']['attributes']
-        # Handle cancellation
+        pass
     
     return jsonify({"status": "ok"}), 200
 
