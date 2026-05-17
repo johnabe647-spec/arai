@@ -22,6 +22,7 @@ from translator import get_text, language_selector, get_theme, theme_selector
 from lemonsqueezy_integration import display_payment_options, handle_checkout_success
 from bank_integration import display_bank_integration_dashboard
 from batch_processor import display_batch_upload_interface
+from feedback import display_feedback_form, display_feedback_dashboard
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -400,6 +401,7 @@ else:
             get_text("navigation.audit_history"),
             get_text("navigation.analytics"),
             get_text("navigation.activity_log"),
+            "📝 Feedback",
             get_text("navigation.settings")
         ])
         
@@ -410,6 +412,7 @@ else:
             get_text("navigation.audit_history"): "Audit History",
             get_text("navigation.analytics"): "Analytics",
             get_text("navigation.activity_log"): "Activity Log",
+            "📝 Feedback": "Feedback",
             get_text("navigation.settings"): "Settings"
         }
         st.session_state.page = page_map.get(page, "Dashboard")
@@ -983,7 +986,6 @@ else:
     elif st.session_state.page == "Analytics":
         st.markdown(f"### 📊 {get_text('navigation.analytics')}")
         
-        # Show analytics dashboard directly (skip feature check for testing)
         audits = get_firm_audits(st.session_state.firm_id, limit=500)
         display_analytics_dashboard(audits, st.session_state.user_email.split('@')[0])
         
@@ -1063,6 +1065,18 @@ else:
             if st.button(get_text("subscription.upgrade_to_unlock"), key="upgrade_activity"):
                 st.session_state.page = "Settings"
                 st.rerun()
+    
+    # Feedback Page
+    elif st.session_state.page == "Feedback":
+        st.markdown("### 📝 Client Feedback")
+        
+        tab1, tab2 = st.tabs(["Submit Feedback", "Analytics Dashboard"])
+        
+        with tab1:
+            display_feedback_form()
+        
+        with tab2:
+            display_feedback_dashboard(st.session_state.firm_id)
     
     # Settings Page
     elif st.session_state.page == "Settings":
