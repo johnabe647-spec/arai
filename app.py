@@ -26,6 +26,7 @@ from feedback import display_feedback_form, display_feedback_dashboard
 from benchmarking import display_benchmark_dashboard
 from usage_tracker import display_usage_dashboard, get_usage_stats
 from audit_tracker import display_audit_tracker
+from quality_trends import display_quality_trends_dashboard
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -1099,6 +1100,10 @@ else:
         # Benchmarking
         st.markdown("---")
         display_benchmark_dashboard(st.session_state.firm_id, stats, audits)
+        
+        # Quality Trends
+        st.markdown("---")
+        display_quality_trends_dashboard(audits, st.session_state.user_email.split('@')[0])
     
     # Activity Log Page
     elif st.session_state.page == "Activity Log":
