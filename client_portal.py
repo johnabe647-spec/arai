@@ -3,8 +3,15 @@ from supabase import create_client
 import hashlib
 from datetime import datetime
 
+# Note: st.secrets is accessed directly in functions, not at module level
+
 def get_supabase():
-    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    """Get Supabase client using secrets"""
+    try:
+        return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    except Exception as e:
+        print(f"Error connecting to Supabase: {e}")
+        return None
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -12,6 +19,8 @@ def hash_password(password):
 def create_client(firm_id, client_name, client_email, client_company, password):
     """Create a new client for a firm"""
     supabase = get_supabase()
+    if not supabase:
+        return False, "Database connection failed"
     
     try:
         # Check if client exists
@@ -35,6 +44,8 @@ def create_client(firm_id, client_name, client_email, client_company, password):
 def get_clients(firm_id):
     """Get all clients for a firm"""
     supabase = get_supabase()
+    if not supabase:
+        return []
     
     try:
         result = supabase.table("clients").select("*").eq("firm_id", firm_id).execute()
@@ -46,6 +57,8 @@ def get_clients(firm_id):
 def get_client_reports(client_id):
     """Get all reports shared with a client"""
     supabase = get_supabase()
+    if not supabase:
+        return []
     
     try:
         result = supabase.table("client_reports").select("*, audits(*)").eq("client_id", client_id).execute()
@@ -57,6 +70,8 @@ def get_client_reports(client_id):
 def share_report_with_client(client_id, audit_id):
     """Share an audit report with a client"""
     supabase = get_supabase()
+    if not supabase:
+        return False, "Database connection failed"
     
     try:
         result = supabase.table("client_reports").insert({
@@ -72,6 +87,8 @@ def share_report_with_client(client_id, audit_id):
 def login_client(email, password):
     """Login client and return client data"""
     supabase = get_supabase()
+    if not supabase:
+        return False, "Database connection failed", None
     
     try:
         email = email.lower()
