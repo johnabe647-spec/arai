@@ -10,6 +10,7 @@ from email_sender import send_report_email
 from team import get_invite, get_team_members, remove_team_member, create_invite
 from subscription import get_firm_subscription, get_subscription_tiers, update_subscription, check_feature_access
 from recommendations import generate_recommendations, display_recommendations
+from branding import get_firm_branding, update_branding, save_firm_logo, remove_logo
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -646,6 +647,9 @@ else:
                         if send_button:
                             if client_email and client_name:
                                 with st.spinner("Generating and sending report..."):
+                                    # Get branding for PDF
+                                    branding = get_firm_branding(st.session_state.firm_id)
+                                    
                                     pdf_path = f"temp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
                                     
                                     audit_summary = {
@@ -662,7 +666,8 @@ else:
                                         firm_name=st.session_state.user_email.split('@')[0],
                                         client_name=client_name,
                                         audit_data=audit_summary,
-                                        output_path=pdf_path
+                                        output_path=pdf_path,
+                                        branding=branding
                                     )
                                     
                                     success, message = send_report_email(
@@ -728,7 +733,7 @@ else:
     elif st.session_state.page == "Settings":
         st.markdown("### ⚙️ Settings")
         
-        tab1, tab2, tab3 = st.tabs(["Team Management", "Firm Settings", "Subscription"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Team Management", "Firm Settings", "Subscription", "Branding"])
         
         # Team Management Tab
         with tab1:
@@ -850,6 +855,94 @@ else:
                     else:
                         if st.button(f"Upgrade to {tier['name']}", key=f"btn_{tier_id}"):
                             st.info(f"Payment integration coming soon. Please contact sales for {tier['name']} plan.")
+        
+        # Branding Tab
+        with tab4:
+            st.markdown("#### 🎨 Branding & White Label")
+            
+            if check_feature_access(st.session_state.firm_id, "custom_branding"):
+                branding = get_firm_branding(st.session_state.firm_id)
+                
+                st.markdown("Customize how your audit reports look to clients.")
+                
+                # Logo upload
+                st.markdown("**Logo Upload**")
+                st.caption("Upload your firm logo (PNG or JPG, max 2MB)")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    logo_file = st.file_uploader("Choose logo file", type=['png', 'jpg', 'jpeg'], key="logo_upload")
+                    if logo_file:
+                        if st.button("Upload Logo"):
+                            success, result = save_firm_logo(st.session_state.firm_id, logo_file)
+                            if success:
+                                st.success("Logo uploaded successfully!")
+                                st.rerun()
+                            else:
+                                st.error(f"Error: {result}")
+                
+                with col2:
+                    if branding.get('logo_url'):
+                        st.image(branding['logo_url'], width=100)
+                        if st.button("Remove Logo"):
+                            remove_logo(st.session_state.firm_id)
+                            st.success("Logo removed")
+                            st.rerun()
+                
+                st.markdown("---")
+                
+                # Brand colors
+                st.markdown("**Brand Colors**")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    primary_color = st.color_picker("Primary Color", branding.get('primary_color', '#1f77b4'))
+                    st.caption("Used for headings and accents")
+                
+                with col2:
+                    secondary_color = st.color_picker("Secondary Color", branding.get('secondary_color', '#4ecdc4'))
+                    st.caption("Used for success indicators")
+                
+                if st.button("Save Colors"):
+                    update_branding(
+                        st.session_state.firm_id,
+                        primary_color=primary_color,
+                        secondary_color=secondary_color
+                    )
+                    st.success("Colors saved!")
+                    st.rerun()
+                
+                st.markdown("---")
+                
+                # Custom footer
+                st.markdown("**Custom Footer**")
+                footer_text = st.text_area("Footer Text", branding.get('footer_text', ''), 
+                                           placeholder="Your firm name | Phone | Email | Website",
+                                           help="This text will appear at the bottom of every PDF report")
+                
+                if st.button("Save Footer"):
+                    update_branding(
+                        st.session_state.firm_id,
+                        footer_text=footer_text
+                    )
+                    st.success("Footer saved!")
+                    st.rerun()
+                
+                st.markdown("---")
+                st.info("Premium branding is available on Enterprise plans. Upgrade to white-label reports.")
+            else:
+                st.info("🎨 Custom branding is available on Enterprise plans ($599/month).")
+                st.markdown("**Features include:**")
+                st.markdown("- Your logo on all reports")
+                st.markdown("- Custom brand colors")
+                st.markdown("- Custom footer with your contact details")
+                st.markdown("- White-label reports (no ARAI branding)")
+                
+                if st.button("Upgrade to Enterprise"):
+                    st.session_state.page = "Settings"
+                    st.rerun()
     
     st.markdown("---")
     st.caption("© 2025 ARAI | Audit Risk & AI Intelligence | Finance Done Smarter")
