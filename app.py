@@ -19,6 +19,7 @@ from email_digest import display_digest_settings
 from notifications import create_audit_notifications, display_notification_center
 from translator import get_text, language_selector
 from lemonsqueezy_integration import display_payment_options, handle_checkout_success
+from bank_integration import display_bank_integration_dashboard
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -878,12 +879,13 @@ else:
     elif st.session_state.page == "Settings":
         st.markdown(f"### ⚙️ {get_text('settings.title')}")
         
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             get_text("settings.team_management"),
             get_text("settings.firm_settings"),
             get_text("settings.subscription"),
             get_text("settings.branding"),
-            get_text("settings.api")
+            get_text("settings.api"),
+            "🏦 Bank Integration"
         ])
         
         # Team Management Tab
@@ -1076,6 +1078,10 @@ else:
                 if st.button(get_text("subscription.upgrade_to_enterprise"), key="upgrade_api"):
                     st.session_state.page = "Settings"
                     st.rerun()
+        
+        # Bank Integration Tab
+        with tab6:
+            display_bank_integration_dashboard(st.session_state.firm_id, st.session_state.user_role)
     
     st.markdown("---")
     st.caption(get_text("footer.copyright"))
