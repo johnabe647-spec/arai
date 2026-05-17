@@ -43,8 +43,6 @@ def check_feature_access(firm_id, feature):
     else:
         tier = "free"
     
-    print(f"Debug: check_feature_access - firm_id={firm_id}, feature={feature}, tier={tier}")
-    
     # Feature access by tier
     features = {
         "basic_reconciliation": ["free", "professional", "enterprise"],
@@ -61,8 +59,27 @@ def check_feature_access(firm_id, feature):
         "scheduled_reports": ["professional", "enterprise"]
     }
     
-    has_access = feature in features.get(feature, []) and tier in features.get(feature, [])
-    print(f"Debug: check_feature_access result = {has_access}")
+    return feature in features.get(feature, []) and tier in features.get(feature, [])
+
+def check_feature_access_with_prompt(firm_id, feature, feature_name=None):
+    """Check feature access and show upgrade prompt if needed"""
+    has_access = check_feature_access(firm_id, feature)
+    
+    if not has_access:
+        display_name = feature_name if feature_name else feature.replace('_', ' ').title()
+        st.info(f"🔒 **{display_name}** is available on Professional and Enterprise plans.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("View Plans", key=f"view_plans_{feature}"):
+                st.session_state.page = "Settings"
+                st.session_state.settings_tab_index = 2
+                st.rerun()
+        with col2:
+            if st.button("Upgrade Now", key=f"upgrade_{feature}"):
+                st.session_state.page = "Settings"
+                st.session_state.settings_tab_index = 2
+                st.rerun()
     
     return has_access
 
@@ -118,3 +135,21 @@ def get_subscription_tiers():
             ]
         }
     }
+
+def get_feature_name(feature_key):
+    """Get human-readable feature name"""
+    feature_names = {
+        "basic_reconciliation": "Basic Reconciliation",
+        "pdf_parsing": "PDF Bank Parsing",
+        "unlimited_audits": "Unlimited Audits",
+        "team_members": "Team Members",
+        "client_portal": "Client Portal",
+        "api_access": "API Access",
+        "priority_support": "Priority Support",
+        "email_reports": "Email Reports",
+        "custom_branding": "Custom Branding",
+        "activity_log": "Activity Logging",
+        "advanced_analytics": "Advanced Analytics",
+        "scheduled_reports": "Scheduled Reports"
+    }
+    return feature_names.get(feature_key, feature_key.replace('_', ' ').title())
