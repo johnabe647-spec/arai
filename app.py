@@ -11,6 +11,7 @@ from team import get_invite, get_team_members, remove_team_member, create_invite
 from subscription import get_firm_subscription, get_subscription_tiers, update_subscription, check_feature_access
 from recommendations import generate_recommendations, display_recommendations
 from branding import get_firm_branding, update_branding, save_firm_logo, remove_logo
+from analytics import display_analytics_dashboard, calculate_time_saved, calculate_cost_savings
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -185,7 +186,7 @@ else:
         
         st.markdown("---")
         
-        page = st.radio("Navigation", ["Dashboard", "New Audit", "Audit History", "Settings"])
+        page = st.radio("Navigation", ["Dashboard", "New Audit", "Audit History", "Analytics", "Settings"])
         
         if page != "New Audit" and st.session_state.page == "New Audit":
             st.session_state.audit_results = None
@@ -647,7 +648,6 @@ else:
                         if send_button:
                             if client_email and client_name:
                                 with st.spinner("Generating and sending report..."):
-                                    # Get branding for PDF
                                     branding = get_firm_branding(st.session_state.firm_id)
                                     
                                     pdf_path = f"temp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
@@ -728,6 +728,22 @@ else:
             st.dataframe(df_display, use_container_width=True)
         else:
             st.info("No audits yet. Run your first audit!")
+    
+    # Analytics Page
+    elif st.session_state.page == "Analytics":
+        st.markdown("### 📊 Analytics & Insights")
+        
+        audits = get_firm_audits(st.session_state.firm_id, limit=500)
+        
+        display_analytics_dashboard(audits, st.session_state.user_email.split('@')[0])
+        
+        # Upgrade prompt for more analytics
+        current_sub = get_firm_subscription(st.session_state.firm_id)
+        if current_sub.get('subscription_tier') == 'free' and len(audits) >= 10:
+            st.info("📊 Advanced analytics and historical data are available on Professional and Enterprise plans. Upgrade to see 12+ months of trends and custom reports.")
+            if st.button("Upgrade Now"):
+                st.session_state.page = "Settings"
+                st.rerun()
     
     # Settings Page
     elif st.session_state.page == "Settings":
