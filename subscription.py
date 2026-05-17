@@ -34,9 +34,18 @@ def update_subscription(firm_id, tier, status=None):
 
 def check_feature_access(firm_id, feature):
     """Check if firm has access to a feature based on subscription"""
-    sub = get_firm_subscription(firm_id)
-    tier = sub.get("subscription_tier", "free")
+    # First, get the actual subscription tier from database
+    supabase = get_supabase()
+    result = supabase.table("firms").select("subscription_tier").eq("id", firm_id).execute()
     
+    if result.data:
+        tier = result.data[0].get("subscription_tier", "free")
+    else:
+        tier = "free"
+    
+    print(f"Debug: check_feature_access - firm_id={firm_id}, feature={feature}, tier={tier}")
+    
+    # Feature access by tier
     features = {
         "basic_reconciliation": ["free", "professional", "enterprise"],
         "pdf_parsing": ["professional", "enterprise"],
@@ -52,7 +61,10 @@ def check_feature_access(firm_id, feature):
         "scheduled_reports": ["professional", "enterprise"]
     }
     
-    return feature in features.get(feature, []) and tier in features.get(feature, [])
+    has_access = feature in features.get(feature, []) and tier in features.get(feature, [])
+    print(f"Debug: check_feature_access result = {has_access}")
+    
+    return has_access
 
 def get_subscription_tiers():
     """Return available subscription plans"""
@@ -70,7 +82,8 @@ def get_subscription_tiers():
                 "❌ Priority support",
                 "❌ Custom branding",
                 "❌ Activity logging",
-                "❌ Scheduled reports"
+                "❌ Scheduled reports",
+                "❌ Advanced analytics"
             ]
         },
         "professional": {
@@ -83,6 +96,7 @@ def get_subscription_tiers():
                 "✅ Email reports",
                 "✅ Activity logging",
                 "✅ Scheduled reports",
+                "✅ Advanced analytics",
                 "✅ Audit history",
                 "❌ Client portal",
                 "❌ Custom branding",
