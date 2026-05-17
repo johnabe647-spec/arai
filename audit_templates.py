@@ -53,7 +53,6 @@ def update_template_usage(template_id):
     supabase = get_supabase()
     
     try:
-        # Get current count
         result = supabase.table("audit_templates").select("usage_count").eq("id", template_id).execute()
         if result.data:
             current = result.data[0].get("usage_count", 0)
@@ -61,10 +60,8 @@ def update_template_usage(template_id):
     except Exception as e:
         print(f"Error updating usage: {e}")
 
-def apply_template_to_audit(template, bank_file, ledger_file):
-    """Apply template settings to an audit (simplified)"""
-    # This would modify audit parameters based on template
-    # For now, return template focus areas as recommendations
+def apply_template_to_audit(template, bank_file=None, ledger_file=None):
+    """Apply template settings to an audit"""
     template_data = template.get("template_data", {})
     
     recommendations = {
@@ -81,7 +78,8 @@ def display_template_library(firm_id):
     st.markdown("### 📚 Audit Template Library")
     st.markdown("Use pre-built audit templates or create your own.")
     
-    tab1, tab2 = st.tabs(["Public Templates", "My Templates", "Create Template"])
+    # Create 3 tabs (fixed: was trying to unpack 2 values into 3 tabs)
+    tab1, tab2, tab3 = st.tabs(["Public Templates", "My Templates", "Create Template"])
     
     # Public Templates Tab
     with tab1:
@@ -89,7 +87,7 @@ def display_template_library(firm_id):
         
         # Industry filter
         industries = ["All", "Retail", "Manufacturing", "Technology", "Non-Profit", "Construction", "Healthcare"]
-        selected_industry = st.selectbox("Filter by Industry", industries)
+        selected_industry = st.selectbox("Filter by Industry", industries, key="template_industry_filter")
         
         templates = get_public_templates(selected_industry if selected_industry != "All" else None)
         
@@ -115,8 +113,7 @@ def display_template_library(firm_id):
                             st.session_state.selected_template = template
                             st.success(f"Template '{template['name']}' loaded!")
                             
-                            # Store template recommendations in session
-                            recommendations = apply_template_to_audit(template, None, None)
+                            recommendations = apply_template_to_audit(template)
                             st.session_state.template_recommendations = recommendations
                             
                             st.rerun()
@@ -144,7 +141,7 @@ def display_template_library(firm_id):
                             st.caption("🌍 Public")
                     
                     with col2:
-                        st.caption(f"Created: {template['created_at'][:10]}")
+                        st.caption(f"Created: {template['created_at'][:10] if template.get('created_at') else 'Unknown'}")
                     
                     with col3:
                         if st.button("Use", key=f"use_firm_{template['id']}"):
