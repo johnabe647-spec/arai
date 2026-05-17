@@ -1,0 +1,118 @@
+{
+    "app_name": "ARAI",
+    "tagline": "Audit Risk & Intelligence Artificielle",
+    "login": {
+        "title": "Connexion",
+        "email": "E-mail",
+        "password": "Mot de passe",
+        "button": "Se connecter",
+        "register": "S'inscrire",
+        "register_title": "Inscrivez votre cabinet",
+        "firm_name": "Nom du cabinet",
+        "confirm_password": "Confirmer le mot de passe"
+    },
+    "navigation": {
+        "dashboard": "Tableau de bord",
+        "new_audit": "Nouvel audit",
+        "audit_history": "Historique",
+        "analytics": "Analytique",
+        "activity_log": "Journal d'activité",
+        "settings": "Paramètres"
+    },
+    "dashboard": {
+        "welcome": "Bienvenue sur ARAI",
+        "total_audits": "Audits totaux",
+        "avg_match_rate": "Taux de correspondance moyen",
+        "avg_fraud_risk": "Risque de fraude moyen",
+        "time_saved": "Temps économisé",
+        "quick_actions": "Actions rapides",
+        "run_new_audit": "Lancer un audit",
+        "view_history": "Voir l'historique",
+        "match_rate_trend": "Tendance du taux de correspondance",
+        "fraud_risk_distribution": "Distribution du risque de fraude",
+        "improving": "Amélioration",
+        "declining": "Détérioration"
+    },
+    "new_audit": {
+        "title": "Nouvel audit",
+        "bank_statement": "Relevé bancaire",
+        "ledger": "Grand livre",
+        "upload_bank": "Télécharger le relevé bancaire (Excel ou PDF)",
+        "upload_ledger": "Télécharger le grand livre (Excel uniquement)",
+        "run_audit": "Lancer l'audit",
+        "processing": "Audit IA en cours...",
+        "audit_complete": "Audit terminé ! Taux de correspondance : {match_rate}",
+        "matched": "Correspondants",
+        "unmatched_bank": "Non correspondants (banque)",
+        "unmatched_ledger": "Non correspondants (grand livre)",
+        "fraud_risk": "Risque de fraude"
+    },
+    "ai_predictions": {
+        "title": "Prédictions IA",
+        "high_risk": "RISQUE ÉLEVÉ",
+        "medium_risk": "RISQUE MOYEN",
+        "low_risk": "RISQUE FAIBLE",
+        "fraud_probability": "probabilité de fraude",
+        "predicted_time": "Temps d'audit prévu",
+        "hours": "heures"
+    },
+    "problem_areas": {
+        "title": "Domaines problématiques identifiés",
+        "revenue_recognition": "Reconnaissance des revenus",
+        "inventory_valuation": "Valorisation des stocks",
+        "accounts_payable": "Comptes fournisseurs",
+        "cash_transactions": "Transactions en espèces",
+        "fixed_assets": "Immobilisations",
+        "related_parties": "Parties liées"
+    },
+    "resource_allocation": {
+        "title": "Recommandations d'allocation des ressources",
+        "senior": "Auditeur senior",
+        "junior": "Auditeur junior",
+        "manager": "Responsable d'audit",
+        "team": "Équipe senior+junior"
+    },
+    "anomalies": {
+        "title": "Anomalies détectées",
+        "date": "Date",
+        "amount": "Montant",
+        "description": "Description",
+        "risk_level": "Niveau de risque"
+    },
+    "email_report": {
+        "title": "Envoyer le rapport par e-mail au client",
+        "client_email": "Adresse e-mail du client",
+        "client_name": "Nom du client",
+        "send_button": "Envoyer le rapport",
+        "sending": "Génération et envoi du rapport...",
+        "success": "Rapport envoyé à {email}",
+        "error": "Échec de l'envoi : {error}",
+        "warning": "Veuillez saisir l'e-mail et le nom du client"
+    },
+    "settings": {
+        "title": "Paramètres",
+        "team_management": "Gestion d'équipe",
+        "firm_settings": "Paramètres du cabinet",
+        "subscription": "Abonnement",
+        "branding": "Image de marque",
+        "api": "API",
+        "current_team": "Équipe actuelle",
+        "invite_new_member": "Inviter un nouveau membre",
+        "email": "Adresse e-mail",
+        "role": "Rôle",
+        "generate_link": "Générer le lien d'invitation"
+    },
+    "subscription": {
+        "title": "Abonnement et facturation",
+        "current_plan": "Plan actuel",
+        "free_plan": "Gratuit",
+        "professional_plan": "Professionnel",
+        "enterprise_plan": "Entreprise",
+        "upgrade": "Mettre à niveau",
+        "downgrade": "Rétrograder",
+        "features": "Fonctionnalités"
+    },
+    "footer": {
+        "copyright": "© 2025 ARAI | Audit Risk & Intelligence Artificielle | Finance simplifiée"
+    }
+}

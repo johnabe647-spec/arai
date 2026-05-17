@@ -1,0 +1,118 @@
+{
+    "app_name": "ARAI",
+    "tagline": "Hatari ya Ukaguzi & Akili Bandia",
+    "login": {
+        "title": "Ingia",
+        "email": "Barua pepe",
+        "password": "Nywila",
+        "button": "Ingia",
+        "register": "Jisajili",
+        "register_title": "Sajili Kampuni Yako",
+        "firm_name": "Jina la Kampuni",
+        "confirm_password": "Thibitisha Nywila"
+    },
+    "navigation": {
+        "dashboard": "Dashibodi",
+        "new_audit": "Ukaguzi Mpya",
+        "audit_history": "Historia ya Ukaguzi",
+        "analytics": "Uchambuzi",
+        "activity_log": "Kumbukumbu ya Shughuli",
+        "settings": "Mipangilio"
+    },
+    "dashboard": {
+        "welcome": "Karibu kwenye ARAI",
+        "total_audits": "Jumla ya Ukaguzi",
+        "avg_match_rate": "Wastani wa Kiwango cha Kulingana",
+        "avg_fraud_risk": "Wastani wa Hatari ya Udanganyifu",
+        "time_saved": "Muda Uliookolewa",
+        "quick_actions": "Vitendo vya Haraka",
+        "run_new_audit": "Fanya Ukaguzi Mpya",
+        "view_history": "Angalia Historia",
+        "match_rate_trend": "Mwenendo wa Kiwango cha Kulingana",
+        "fraud_risk_distribution": "Usambazaji wa Hatari ya Udanganyifu",
+        "improving": "Inaboreka",
+        "declining": "Inazorota"
+    },
+    "new_audit": {
+        "title": "Ukaguzi Mpya",
+        "bank_statement": "Taarifa ya Benki",
+        "ledger": "Ledger",
+        "upload_bank": "Pakia Taarifa ya Benki (Excel au PDF)",
+        "upload_ledger": "Pakia Ledger (Excel tu)",
+        "run_audit": "Fanya Ukaguzi",
+        "processing": "Inafanya ukaguzi wa Akili Bandia...",
+        "audit_complete": "Ukaguzi umekamilika! Kiwango cha kulingana: {match_rate}",
+        "matched": "Vilivyolingana",
+        "unmatched_bank": "Havikulingana (Benki)",
+        "unmatched_ledger": "Havikulingana (Ledger)",
+        "fraud_risk": "Hatari ya Udanganyifu"
+    },
+    "ai_predictions": {
+        "title": "Utabiri wa Akili Bandia",
+        "high_risk": "HATARI KUBWA",
+        "medium_risk": "HATARI YA KATI",
+        "low_risk": "HATARI NDOGO",
+        "fraud_probability": "uwezekano wa udanganyifu",
+        "predicted_time": "Muda uliotabiriwa wa Ukaguzi",
+        "hours": "saa"
+    },
+    "problem_areas": {
+        "title": "Maeneo ya Matatizo Yaliyotambuliwa",
+        "revenue_recognition": "Utambuzi wa Mapato",
+        "inventory_valuation": "Thamani ya Orodha",
+        "accounts_payable": "Akaunti Zinazolipwa",
+        "cash_transactions": "Miamala ya Pesa",
+        "fixed_assets": "Mali Zisizohamishika",
+        "related_parties": "Pandeyo Husika"
+    },
+    "resource_allocation": {
+        "title": "Mapendekezo ya Ugawaji Rasilimali",
+        "senior": "Mkaguzi Mwandamizi",
+        "junior": "Mkaguzi Mjasiriamali",
+        "manager": "Meneja wa Ukaguzi",
+        "team": "Timu ya Wandamizi na Wajasiriamali"
+    },
+    "anomalies": {
+        "title": "Hitilafu Zilizogunduliwa",
+        "date": "Tarehe",
+        "amount": "Kiasi",
+        "description": "Maelezo",
+        "risk_level": "Kiwango cha Hatari"
+    },
+    "email_report": {
+        "title": "Tuma Ripoti kwa Barua pepe kwa Mteja",
+        "client_email": "Barua pepe ya Mteja",
+        "client_name": "Jina la Mteja",
+        "send_button": "Tuma Ripoti",
+        "sending": "Inatayarisha na kutuma ripoti...",
+        "success": "Ripoti imetumwa kwa {email}",
+        "error": "Imeshindwa kutuma: {error}",
+        "warning": "Tafadhali weka barua pepe na jina la mteja"
+    },
+    "settings": {
+        "title": "Mipangilio",
+        "team_management": "Usimamizi wa Timu",
+        "firm_settings": "Mipangilio ya Kampuni",
+        "subscription": "Usajili",
+        "branding": "Chapa",
+        "api": "API",
+        "current_team": "Timu ya Sasa",
+        "invite_new_member": "Alika Mwanachama Mpya",
+        "email": "Barua pepe",
+        "role": "Nafasi",
+        "generate_link": "Tengeneza Kiungo cha Mwaliko"
+    },
+    "subscription": {
+        "title": "Usajili na Malipo",
+        "current_plan": "Mpango wa Sasa",
+        "free_plan": "Bure",
+        "professional_plan": "Kitaalamu",
+        "enterprise_plan": "Biashara",
+        "upgrade": "Boresha",
+        "downgrade": "Shusha",
+        "features": "Vipengele"
+    },
+    "footer": {
+        "copyright": "© 2025 ARAI | Hatari ya Ukaguzi & Akili Bandia | Fedha kwa Akili Zaidi"
+    }
+}

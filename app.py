@@ -17,6 +17,7 @@ from activity_logger import log_activity, display_activity_dashboard
 from api_manager import display_api_dashboard
 from email_digest import display_digest_settings
 from notifications import create_audit_notifications, display_notification_center
+from translator import get_text, language_selector
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -26,6 +27,10 @@ st.set_page_config(
     page_icon="🔍",
     layout="wide"
 )
+
+# Initialize language in session state
+if "language" not in st.session_state:
+    st.session_state.language = "en"
 
 # Custom CSS
 st.markdown("""
@@ -97,23 +102,23 @@ if "invite" in query_params:
     
     if invite and not error:
         st.session_state.pending_invite = invite
-        st.info(f"✨ You've been invited to join **{invite['firms']['name']}** as a **{invite['role']}**. Please register below.")
+        st.info(f"✨ {get_text('login.invite_message', invite_name=invite['firms']['name'], invite_role=invite['role'])}")
 
 # Header
-st.markdown('<p class="main-header">🔍 ARAI</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Audit Risk & AI Intelligence | Client Portal</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="main-header">🔍 {get_text("app_name")}</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="sub-header">{get_text("tagline")}</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 # Authentication
 if not st.session_state.authenticated:
-    tab1, tab2 = st.tabs(["Login", "Register"])
+    tab1, tab2 = st.tabs([get_text("login.title"), get_text("login.register")])
     
     with tab1:
         with st.form("login_form"):
-            st.markdown("### 🔐 Login")
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Login", width="stretch")
+            st.markdown(f"### 🔐 {get_text('login.title')}")
+            email = st.text_input(get_text("login.email"))
+            password = st.text_input(get_text("login.password"), type="password")
+            submitted = st.form_submit_button(get_text("login.button"), width="stretch")
             
             if submitted:
                 success, message, firm_id, role = login_user(email, password)
@@ -122,7 +127,6 @@ if not st.session_state.authenticated:
                     st.session_state.firm_id = firm_id
                     st.session_state.user_email = email
                     st.session_state.user_role = role
-                    # Log activity
                     log_activity(firm_id, email, "login", {"role": role})
                     st.rerun()
                 else:
@@ -130,24 +134,24 @@ if not st.session_state.authenticated:
     
     with tab2:
         with st.form("register_form"):
-            st.markdown("### 📝 Register")
+            st.markdown(f"### 📝 {get_text('login.register_title')}")
             
             if "pending_invite" in st.session_state:
                 invite = st.session_state.pending_invite
-                st.info(f"You are joining: **{invite['firms']['name']}** as a **{invite['role']}**")
+                st.info(get_text("login.joining_firm", firm_name=invite['firms']['name'], role=invite['role']))
                 
-                firm_name = st.text_input("Firm Name", value=invite['firms']['name'], disabled=True)
-                email = st.text_input("Email", value=invite['email'], disabled=True)
-                password = st.text_input("Password", type="password")
-                confirm_password = st.text_input("Confirm Password", type="password")
+                firm_name = st.text_input(get_text("login.firm_name"), value=invite['firms']['name'], disabled=True)
+                email = st.text_input(get_text("login.email"), value=invite['email'], disabled=True)
+                password = st.text_input(get_text("login.password"), type="password")
+                confirm_password = st.text_input(get_text("login.confirm_password"), type="password")
                 
-                submitted = st.form_submit_button("Join Firm", width="stretch")
+                submitted = st.form_submit_button(get_text("login.join_firm"), width="stretch")
                 
                 if submitted:
                     if password != confirm_password:
-                        st.error("Passwords do not match")
+                        st.error(get_text("login.password_mismatch"))
                     elif len(password) < 6:
-                        st.error("Password must be at least 6 characters")
+                        st.error(get_text("login.password_length"))
                     else:
                         success, result = register_user_for_existing_firm(
                             email, password, 
@@ -156,64 +160,84 @@ if not st.session_state.authenticated:
                             token
                         )
                         if success:
-                            st.success("Registration successful! Please login.")
+                            st.success(get_text("login.registration_success"))
                             del st.session_state.pending_invite
                             st.rerun()
                         else:
                             st.error(result)
             else:
-                firm_name = st.text_input("Firm Name")
-                email = st.text_input("Email")
-                password = st.text_input("Password", type="password")
-                confirm_password = st.text_input("Confirm Password", type="password")
-                submitted = st.form_submit_button("Register Firm", width="stretch")
+                firm_name = st.text_input(get_text("login.firm_name"))
+                email = st.text_input(get_text("login.email"))
+                password = st.text_input(get_text("login.password"), type="password")
+                confirm_password = st.text_input(get_text("login.confirm_password"), type="password")
+                submitted = st.form_submit_button(get_text("login.register_button"), width="stretch")
                 
                 if submitted:
                     if password != confirm_password:
-                        st.error("Passwords do not match")
+                        st.error(get_text("login.password_mismatch"))
                     elif len(password) < 6:
-                        st.error("Password must be at least 6 characters")
+                        st.error(get_text("login.password_length"))
                     else:
                         success, result = register_firm(firm_name, email, password)
                         if success:
-                            st.success("Registration successful! Please login.")
+                            st.success(get_text("login.registration_success"))
                         else:
                             st.error(result)
 
 else:
     # Sidebar navigation
     with st.sidebar:
-        st.markdown(f"**User:** {st.session_state.user_email}")
-        st.markdown(f"**Role:** {st.session_state.user_role}")
-        st.markdown(f"**Firm ID:** {st.session_state.firm_id}")
+        st.markdown(f"**{get_text('login.user')}:** {st.session_state.user_email}")
+        st.markdown(f"**{get_text('settings.role')}:** {st.session_state.user_role}")
+        st.markdown(f"**{get_text('settings.firm_id')}:** {st.session_state.firm_id}")
         
-        # Show subscription tier in sidebar
         sub = get_firm_subscription(st.session_state.firm_id)
-        st.markdown(f"**Plan:** {sub.get('subscription_tier', 'free').title()}")
+        st.markdown(f"**{get_text('subscription.current_plan')}:** {sub.get('subscription_tier', 'free').title()}")
         
         st.markdown("---")
         
-        page = st.radio("Navigation", ["Dashboard", "New Audit", "Audit History", "Analytics", "Activity Log", "Settings"])
+        page = st.radio(get_text("navigation.title"), [
+            get_text("navigation.dashboard"),
+            get_text("navigation.new_audit"),
+            get_text("navigation.audit_history"),
+            get_text("navigation.analytics"),
+            get_text("navigation.activity_log"),
+            get_text("navigation.settings")
+        ])
         
-        if page != "New Audit" and st.session_state.page == "New Audit":
+        # Map display names back to internal names
+        page_map = {
+            get_text("navigation.dashboard"): "Dashboard",
+            get_text("navigation.new_audit"): "New Audit",
+            get_text("navigation.audit_history"): "Audit History",
+            get_text("navigation.analytics"): "Analytics",
+            get_text("navigation.activity_log"): "Activity Log",
+            get_text("navigation.settings"): "Settings"
+        }
+        st.session_state.page = page_map.get(page, "Dashboard")
+        
+        if st.session_state.page != "New Audit" and st.session_state.page == "New Audit":
             st.session_state.audit_results = None
-        
-        st.session_state.page = page
         
         st.markdown("---")
         
         # Client Portal Link
-        st.markdown("### 🔗 Client Portal")
-        st.markdown("Share this link with your clients:")
+        st.markdown(f"### 🔗 {get_text('client_portal.title')}")
+        st.markdown(f"{get_text('client_portal.share_link')}:")
         st.code("https://arai-client-portal.streamlit.app", language="text")
-        st.caption("Clients can view their audit reports here")
+        st.caption(get_text("client_portal.caption"))
         
         # Notification Center
         display_notification_center(st.session_state.firm_id, st.session_state.user_email)
         
         st.markdown("---")
         
-        if st.button("Logout"):
+        # Language Selector
+        language_selector()
+        
+        st.markdown("---")
+        
+        if st.button(get_text("login.logout")):
             log_activity(st.session_state.firm_id, st.session_state.user_email, "logout", {})
             for key in ["authenticated", "firm_id", "user_email", "user_role", "audit_results"]:
                 if key in st.session_state:
@@ -222,26 +246,23 @@ else:
     
     # Dashboard Page
     if st.session_state.page == "Dashboard":
-        st.markdown(f"### Welcome to ARAI")
+        st.markdown(f"### {get_text('dashboard.welcome')}")
         
-        # Get firm statistics
         stats = get_firm_stats(st.session_state.firm_id)
         audits = get_firm_audits(st.session_state.firm_id, limit=100)
         
-        # Top metrics row
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Audits", stats["total_audits"])
-        col2.metric("Avg Match Rate", f"{stats['avg_match_rate']:.1%}")
-        col3.metric("Avg Fraud Risk", f"{stats['avg_fraud_risk']:.0f}%")
-        col4.metric("Time Saved", f"{stats['total_time_saved']} hours")
+        col1.metric(get_text("dashboard.total_audits"), stats["total_audits"])
+        col2.metric(get_text("dashboard.avg_match_rate"), f"{stats['avg_match_rate']:.1%}")
+        col3.metric(get_text("dashboard.avg_fraud_risk"), f"{stats['avg_fraud_risk']:.0f}%")
+        col4.metric(get_text("dashboard.time_saved"), f"{stats['total_time_saved']} {get_text('dashboard.hours')}")
         
         st.markdown("---")
         
-        # Row 1: Main Charts
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("📈 Match Rate Trend")
+            st.subheader(f"📈 {get_text('dashboard.match_rate_trend')}")
             if len(audits) >= 2:
                 valid_audits = [a for a in audits if a.get('created_at')]
                 if len(valid_audits) >= 2:
@@ -250,72 +271,73 @@ else:
                     df = df.sort_values('created_at')
                     
                     fig = px.line(df, x='created_at', y='match_rate', 
-                                  title='Match Rate Over Time',
-                                  labels={'match_rate': 'Match Rate', 'created_at': 'Date'})
+                                  title=get_text("dashboard.match_rate_trend"),
+                                  labels={'match_rate': get_text("dashboard.match_rate"), 'created_at': get_text("dashboard.date")})
                     fig.update_traces(line_color='#1f77b4', line_width=3)
                     fig.update_layout(showlegend=False, height=300)
                     st.plotly_chart(fig, use_container_width=True)
                     
                     if len(df) >= 3:
-                        st.caption("📊 Trend: " + ("Improving 📈" if df['match_rate'].iloc[-1] > df['match_rate'].iloc[0] else "Declining 📉"))
+                        trend = get_text("dashboard.improving") if df['match_rate'].iloc[-1] > df['match_rate'].iloc[0] else get_text("dashboard.declining")
+                        st.caption(f"📊 {get_text('dashboard.trend')}: {trend}")
                 else:
-                    st.info("Run more audits to see trend data")
+                    st.info(get_text("dashboard.run_more_audits"))
             else:
-                st.info("Run at least 2 audits to see trend data")
+                st.info(get_text("dashboard.run_at_least_2"))
         
         with col2:
-            st.subheader("🎯 Fraud Risk Distribution")
+            st.subheader(f"🎯 {get_text('dashboard.fraud_risk_distribution')}")
             if len(audits) >= 3:
                 risk_levels = []
                 for a in audits:
                     risk = a.get('fraud_risk', 0)
                     if risk >= 70:
-                        risk_levels.append('High')
+                        risk_levels.append(get_text("dashboard.high"))
                     elif risk >= 40:
-                        risk_levels.append('Medium')
+                        risk_levels.append(get_text("dashboard.medium"))
                     else:
-                        risk_levels.append('Low')
+                        risk_levels.append(get_text("dashboard.low"))
                 
                 risk_df = pd.DataFrame({'Risk Level': risk_levels})
                 risk_counts = risk_df['Risk Level'].value_counts().reset_index()
                 risk_counts.columns = ['Risk Level', 'Count']
                 
-                colors = {'High': '#ff6b6b', 'Medium': '#ffa500', 'Low': '#4ecdc4'}
+                colors = {get_text("dashboard.high"): '#ff6b6b', get_text("dashboard.medium"): '#ffa500', get_text("dashboard.low"): '#4ecdc4'}
                 fig = px.bar(risk_counts, x='Risk Level', y='Count', 
-                             title='Audits by Risk Level',
+                             title=get_text("dashboard.audits_by_risk"),
                              color='Risk Level',
                              color_discrete_map=colors)
                 fig.update_layout(showlegend=False, height=300)
                 st.plotly_chart(fig, use_container_width=True)
                 
-                high_count = risk_levels.count('High')
+                high_count = risk_levels.count(get_text("dashboard.high"))
                 if high_count > 0:
-                    st.warning(f"⚠️ {high_count} high-risk audits detected")
+                    st.warning(f"⚠️ {high_count} {get_text('dashboard.high_risk_audits')}")
             else:
-                st.info("Run at least 3 audits to see risk distribution")
+                st.info(get_text("dashboard.run_at_least_3"))
         
         st.markdown("---")
         
         # Row 2: Advanced Analytics
-        st.subheader("📊 Advanced Analytics")
+        st.subheader(f"📊 {get_text('dashboard.advanced_analytics')}")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("#### ⏱️ Time Saved")
+            st.markdown(f"#### ⏱️ {get_text('dashboard.time_saved')}")
             if stats['total_time_saved'] > 0:
                 fig = px.pie(values=[stats['total_time_saved'], max(1, 100 - stats['total_time_saved'])],
-                             names=['Time Saved', 'Remaining'],
-                             title=f"Total: {stats['total_time_saved']} hours",
+                             names=[get_text('dashboard.time_saved'), get_text('dashboard.remaining')],
+                             title=f"{get_text('dashboard.total')}: {stats['total_time_saved']} {get_text('dashboard.hours')}",
                              color_discrete_sequence=['#28a745', '#e0e0e0'])
                 fig.update_layout(height=250, showlegend=True)
                 st.plotly_chart(fig, use_container_width=True)
-                st.caption(f"💰 Estimated value: ${stats['total_time_saved'] * 50:,} (at $50/hour)")
+                st.caption(f"💰 {get_text('dashboard.estimated_value')}: ${stats['total_time_saved'] * 50:,} ({get_text('dashboard.at_50_per_hour')})")
             else:
-                st.info("Run audits to see time saved")
+                st.info(get_text("dashboard.run_audits_to_see"))
         
         with col2:
-            st.markdown("#### 📊 Audit Quality Score")
+            st.markdown(f"#### 📊 {get_text('dashboard.audit_quality_score')}")
             if len(audits) > 0:
                 quality_scores = []
                 for a in audits:
@@ -329,7 +351,7 @@ else:
                 fig = go.Figure(go.Indicator(
                     mode = "gauge+number",
                     value = avg_quality * 100,
-                    title = {'text': "Quality Score"},
+                    title = {'text': get_text("dashboard.quality_score")},
                     domain = {'x': [0, 1], 'y': [0, 1]},
                     gauge = {
                         'axis': {'range': [None, 100]},
@@ -350,42 +372,42 @@ else:
                 st.plotly_chart(fig, use_container_width=True)
                 
                 if avg_quality >= 0.75:
-                    st.success("Excellent audit quality")
+                    st.success(get_text("dashboard.excellent_quality"))
                 elif avg_quality >= 0.5:
-                    st.info("Good audit quality")
+                    st.info(get_text("dashboard.good_quality"))
                 else:
-                    st.warning("Room for improvement")
+                    st.warning(get_text("dashboard.room_for_improvement"))
             else:
-                st.info("Run audits to see quality score")
+                st.info(get_text("dashboard.run_audits_to_see"))
         
         with col3:
-            st.markdown("#### 🏆 Performance Summary")
+            st.markdown(f"#### 🏆 {get_text('dashboard.performance_summary')}")
             if len(audits) > 0:
                 best_audit = max(audits, key=lambda x: x.get('match_rate', 0))
                 worst_audit = min(audits, key=lambda x: x.get('match_rate', 0))
                 
-                st.metric("Best Match Rate", f"{best_audit.get('match_rate', 0):.1%}")
+                st.metric(get_text("dashboard.best_match_rate"), f"{best_audit.get('match_rate', 0):.1%}")
                 st.caption(f"📁 {best_audit.get('filename', 'N/A')[:30]}")
                 
-                st.metric("Worst Match Rate", f"{worst_audit.get('match_rate', 0):.1%}")
+                st.metric(get_text("dashboard.worst_match_rate"), f"{worst_audit.get('match_rate', 0):.1%}")
                 st.caption(f"📁 {worst_audit.get('filename', 'N/A')[:30]}")
                 
                 if audits:
                     latest = audits[0]
                     fraud = latest.get('fraud_risk', 0)
                     if fraud >= 70:
-                        st.error(f"🚨 Latest audit: {fraud:.0f}% fraud risk")
+                        st.error(f"🚨 {get_text('dashboard.latest_audit')}: {fraud:.0f}% {get_text('dashboard.fraud_risk')}")
                     elif fraud >= 40:
-                        st.warning(f"⚠️ Latest audit: {fraud:.0f}% fraud risk")
+                        st.warning(f"⚠️ {get_text('dashboard.latest_audit')}: {fraud:.0f}% {get_text('dashboard.fraud_risk')}")
                     else:
-                        st.success(f"✅ Latest audit: {fraud:.0f}% fraud risk")
+                        st.success(f"✅ {get_text('dashboard.latest_audit')}: {fraud:.0f}% {get_text('dashboard.fraud_risk')}")
             else:
-                st.info("Run audits to see summary")
+                st.info(get_text("dashboard.run_audits_to_see"))
         
         st.markdown("---")
         
-        # Smart Recommendations on Dashboard
-        st.subheader("💡 Smart Recommendations")
+        # Smart Recommendations
+        st.subheader(f"💡 {get_text('ai_recommendations.title')}")
         
         if audits:
             latest = audits[0]
@@ -394,35 +416,35 @@ else:
                 {
                     "category": "📊 Audit Quality",
                     "priority": "Medium",
-                    "recommendation": f"Your match rate is {latest.get('match_rate', 0):.1%}. Continue monitoring for consistency.",
-                    "expected_impact": "Maintain quality standards",
+                    "recommendation": get_text("ai_recommendations.match_rate_rec", match_rate=f"{latest.get('match_rate', 0):.1%}"),
+                    "expected_impact": get_text("ai_recommendations.maintain_quality"),
                     "effort": "Low"
                 },
                 {
                     "category": "🚨 Risk Management",
                     "priority": "High" if latest.get('fraud_risk', 0) > 50 else "Low",
-                    "recommendation": f"Fraud risk is {latest.get('fraud_risk', 0):.0f}%. {'Review controls immediately' if latest.get('fraud_risk', 0) > 50 else 'Current controls appear adequate'}.",
-                    "expected_impact": "Reduce risk exposure",
+                    "recommendation": get_text("ai_recommendations.fraud_risk_rec", fraud_risk=f"{latest.get('fraud_risk', 0):.0f}%"),
+                    "expected_impact": get_text("ai_recommendations.reduce_risk"),
                     "effort": "Medium"
                 },
                 {
                     "category": "📈 Performance",
                     "priority": "Low",
-                    "recommendation": "Run more audits to get personalized recommendations based on your specific results.",
-                    "expected_impact": "Better insights",
+                    "recommendation": get_text("ai_recommendations.run_more_audits"),
+                    "expected_impact": get_text("ai_recommendations.better_insights"),
                     "effort": "Low"
                 }
             ]
             
             display_recommendations(sample_recommendations)
-            st.caption("Run a new audit to get detailed recommendations based on your specific results")
+            st.caption(get_text("ai_recommendations.run_new_audit_for_details"))
         else:
-            st.info("Run an audit to get personalized recommendations")
+            st.info(get_text("ai_recommendations.run_audit_for_recommendations"))
         
         st.markdown("---")
         
         # Recent Activity
-        st.subheader("📋 Recent Activity")
+        st.subheader(f"📋 {get_text('dashboard.recent_activity')}")
         
         if audits:
             recent = audits[:5]
@@ -431,9 +453,9 @@ else:
                     try:
                         created = pd.to_datetime(audit['created_at']).strftime('%b %d, %Y')
                     except:
-                        created = "Date unknown"
+                        created = get_text("dashboard.date_unknown")
                 else:
-                    created = "Date unknown"
+                    created = get_text("dashboard.date_unknown")
                 
                 match_rate = audit.get('match_rate', 0)
                 fraud_risk = audit.get('fraud_risk', 0)
@@ -449,88 +471,40 @@ else:
                 <div style="padding: 10px; border-bottom: 1px solid #eee;">
                     <strong>{color} {audit['filename']}</strong><br>
                     📅 {created} &nbsp;|&nbsp;
-                    📊 Match Rate: {match_rate:.1%} &nbsp;|&nbsp;
-                    ⚠️ Fraud Risk: {fraud_risk:.0f}%
+                    📊 {get_text('dashboard.match_rate')}: {match_rate:.1%} &nbsp;|&nbsp;
+                    ⚠️ {get_text('dashboard.fraud_risk')}: {fraud_risk:.0f}%
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.info("No audits yet. Run your first audit!")
-        
-        # AI Audit Assistant
-        st.markdown("---")
-        st.subheader("🤖 AI Audit Assistant")
-        
-        with st.expander("Ask ARAI anything about your audits"):
-            user_question = st.text_input("Ask a question", placeholder="e.g., Show me all high-risk clients", key="ai_question")
-            
-            col1, col2 = st.columns([1, 5])
-            with col1:
-                ask_button = st.button("Ask AI", key="ask_ai_button")
-            
-            if ask_button and user_question:
-                with st.spinner("Thinking..."):
-                    if audits:
-                        latest = audits[0]
-                        audit_context = {
-                            "match_rate": latest.get('match_rate', 0),
-                            "matched": latest.get('audit_data', {}).get('matched', 0),
-                            "unmatched_bank": latest.get('audit_data', {}).get('unmatched_bank', 0),
-                            "unmatched_ledger": latest.get('audit_data', {}).get('unmatched_ledger', 0),
-                            "anomalies": latest.get('audit_data', {}).get('anomalies', 0),
-                            "fraud_risk": latest.get('fraud_risk', 0),
-                            "problem_areas": latest.get('audit_data', {}).get('problem_areas', {})
-                        }
-                        
-                        user_question_lower = user_question.lower()
-                        
-                        if "match rate" in user_question_lower:
-                            answer = f"The match rate for the latest audit is {audit_context['match_rate']:.1%}."
-                        elif "fraud" in user_question_lower:
-                            answer = f"The fraud risk score is {audit_context['fraud_risk']:.0f}%."
-                        elif "anomalies" in user_question_lower or "anomaly" in user_question_lower:
-                            answer = f"There are {audit_context['anomalies']} anomalies detected in the latest audit."
-                        elif "problem" in user_question_lower or "risk" in user_question_lower or "area" in user_question_lower:
-                            areas = ', '.join(list(audit_context['problem_areas'].keys())[:3])
-                            answer = f"Problem areas identified: {areas if areas else 'None detected'}."
-                        elif "matched" in user_question_lower or "match" in user_question_lower:
-                            answer = f"Successfully matched {audit_context['matched']} transactions."
-                        elif "unmatched" in user_question_lower:
-                            answer = f"There are {audit_context['unmatched_bank']} unmatched bank transactions and {audit_context['unmatched_ledger']} unmatched ledger entries."
-                        else:
-                            answer = f"I can help you understand your audit data. Try asking about:\n- Match rate\n- Fraud risk\n- Anomalies\n- Problem areas\n- Matched/unmatched transactions"
-                        
-                        st.success(f"🤖 {answer}")
-                    else:
-                        st.info("Run an audit first to ask questions about it")
+            st.info(get_text("dashboard.no_audits_yet"))
         
         st.markdown("---")
-        st.markdown("### Quick Actions")
+        st.markdown(f"### {get_text('dashboard.quick_actions')}")
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("📄 Run New Audit", width="stretch"):
+            if st.button(f"📄 {get_text('dashboard.run_new_audit')}", width="stretch"):
                 st.session_state.page = "New Audit"
                 st.session_state.audit_results = None
                 st.rerun()
         
         with col2:
-            if st.button("📜 View Audit History", width="stretch"):
+            if st.button(f"📜 {get_text('dashboard.view_history')}", width="stretch"):
                 st.session_state.page = "Audit History"
                 st.rerun()
     
     # New Audit Page
     elif st.session_state.page == "New Audit":
-        st.markdown("### 📄 New Audit")
+        st.markdown(f"### 📄 {get_text('new_audit.title')}")
         
-        # Check subscription for audit limits
         current_sub = get_firm_subscription(st.session_state.firm_id)
         stats = get_firm_stats(st.session_state.firm_id)
         
         if current_sub.get('subscription_tier') == 'free' and stats['total_audits'] >= 10:
-            st.warning("You have reached the free plan limit of 10 audits. Please upgrade to continue.")
-            st.info("Go to Settings → Subscription to upgrade your plan.")
+            st.warning(get_text("subscription.free_limit_reached"))
+            st.info(get_text("subscription.upgrade_to_continue"))
             
-            if st.button("View Subscription Plans"):
+            if st.button(get_text("subscription.view_plans")):
                 st.session_state.page = "Settings"
                 st.rerun()
         else:
@@ -539,21 +513,21 @@ else:
                 
                 with col1:
                     bank_file = st.file_uploader(
-                        "Bank Statement (Excel or PDF)",
+                        get_text("new_audit.upload_bank"),
                         type=['xlsx', 'xls', 'pdf'],
                         key="bank"
                     )
                 
                 with col2:
                     ledger_file = st.file_uploader(
-                        "Ledger (Excel only)",
+                        get_text("new_audit.upload_ledger"),
                         type=['xlsx', 'xls'],
                         key="ledger"
                     )
                 
                 if bank_file and ledger_file:
-                    if st.button("🚀 Run Audit", type="primary"):
-                        with st.spinner("Running AI-powered audit..."):
+                    if st.button(f"🚀 {get_text('new_audit.run_audit')}", type="primary"):
+                        with st.spinner(get_text("new_audit.processing")):
                             try:
                                 from reconciler import reconcile
                                 from anomaly_detector import detect_anomalies
@@ -573,7 +547,7 @@ else:
                                 
                                 if bank_filename.endswith('.pdf'):
                                     if not check_feature_access(st.session_state.firm_id, "pdf_parsing"):
-                                        st.error("PDF parsing is only available on Professional and Enterprise plans. Please upgrade.")
+                                        st.error(get_text("subscription.pdf_parsing_required"))
                                         st.stop()
                                     from pdf_parser import parse_bank_statement
                                     bank_df = parse_bank_statement(bank_path)
@@ -623,14 +597,12 @@ else:
                                     audit_data=audit_data_summary
                                 )
                                 
-                                # Log activity
                                 log_activity(st.session_state.firm_id, st.session_state.user_email, "run_audit", {
                                     "filename": bank_file.name,
                                     "match_rate": result['summary']['match_rate'],
                                     "transaction_count": len(bank_df)
                                 })
                                 
-                                # Create notifications
                                 create_audit_notifications(
                                     firm_id=st.session_state.firm_id,
                                     filename=bank_file.name,
@@ -656,72 +628,73 @@ else:
                 problem_areas = results['problem_areas']
                 resources = results['resources']
                 
-                st.success(f"✅ Audit complete! Match rate: {result['summary']['match_rate']:.1%}")
+                st.success(get_text("new_audit.audit_complete", match_rate=f"{result['summary']['match_rate']:.1%}"))
                 
                 col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Matched", result['summary']['matched'])
-                col2.metric("Unmatched Bank", result['summary']['unmatched_bank'])
-                col3.metric("Unmatched Ledger", result['summary']['unmatched_ledger'])
-                col4.metric("Fraud Risk", f"{fraud_risk:.0f}%")
+                col1.metric(get_text("new_audit.matched"), result['summary']['matched'])
+                col2.metric(get_text("new_audit.unmatched_bank"), result['summary']['unmatched_bank'])
+                col3.metric(get_text("new_audit.unmatched_ledger"), result['summary']['unmatched_ledger'])
+                col4.metric(get_text("new_audit.fraud_risk"), f"{fraud_risk:.0f}%")
                 
                 st.markdown("---")
-                st.subheader("🤖 AI Predictions")
+                st.subheader(f"🤖 {get_text('ai_predictions.title')}")
                 
                 if fraud_risk >= 70:
-                    st.markdown(f'<div class="risk-high">🔴 HIGH RISK: {fraud_risk:.0f}% fraud probability</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="risk-high">🔴 {get_text("ai_predictions.high_risk")}: {fraud_risk:.0f}% {get_text("ai_predictions.fraud_probability")}</div>', unsafe_allow_html=True)
                 elif fraud_risk >= 40:
-                    st.markdown(f'<div class="risk-medium">🟡 MEDIUM RISK: {fraud_risk:.0f}% fraud probability</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="risk-medium">🟡 {get_text("ai_predictions.medium_risk")}: {fraud_risk:.0f}% {get_text("ai_predictions.fraud_probability")}</div>', unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<div class="risk-low">🟢 LOW RISK: {fraud_risk:.0f}% fraud probability</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="risk-low">🟢 {get_text("ai_predictions.low_risk")}: {fraud_risk:.0f}% {get_text("ai_predictions.fraud_probability")}</div>', unsafe_allow_html=True)
                 
-                st.metric("Predicted Audit Time", f"{predicted_hours:.1f} hours")
+                st.metric(f"{get_text('ai_predictions.predicted_time')}", f"{predicted_hours:.1f} {get_text('ai_predictions.hours')}")
                 
                 st.markdown("---")
-                st.subheader("🎯 Problem Areas Identified")
+                st.subheader(f"🎯 {get_text('problem_areas.title')}")
                 for area, risk in list(problem_areas.items())[:4]:
                     st.progress(risk/100)
-                    st.write(f"**{area}** - {risk:.0f}% risk")
+                    area_name = get_text(f"problem_areas.{area.lower().replace(' ', '_')}", default=area)
+                    st.write(f"**{area_name}** - {risk:.0f}% {get_text('problem_areas.risk')}")
                 
                 st.markdown("---")
-                st.subheader("👥 Resource Allocation Recommendations")
+                st.subheader(f"👥 {get_text('resource_allocation.title')}")
                 for rec in resources[:3]:
-                    st.info(f"**{rec['area']}** → Assign to: {rec['assigned_to']}")
+                    assigned_to = get_text(f"resource_allocation.{rec['assigned_to'].lower().replace(' ', '_')}", default=rec['assigned_to'])
+                    st.info(f"**{rec['area']}** → {get_text('resource_allocation.assign_to')}: {assigned_to}")
                 
                 if not anomalies.empty:
                     st.markdown("---")
-                    st.subheader("🚨 Anomalies Detected")
+                    st.subheader(f"🚨 {get_text('anomalies.title')}")
                     st.dataframe(anomalies[['date', 'amount', 'description', 'risk_level']].head(5))
                 
-                tab1, tab2 = st.tabs(["Unmatched Bank", "Unmatched Ledger"])
+                tab1, tab2 = st.tabs([get_text("new_audit.unmatched_bank"), get_text("new_audit.unmatched_ledger")])
                 with tab1:
                     if not result['unmatched_bank'].empty:
                         st.dataframe(result['unmatched_bank'][['date', 'amount', 'description']])
                     else:
-                        st.success("✅ All bank transactions matched!")
+                        st.success(f"✅ {get_text('new_audit.all_bank_matched')}")
                 
                 with tab2:
                     if not result['unmatched_ledger'].empty:
                         st.dataframe(result['unmatched_ledger'][['date', 'amount', 'description']])
                     else:
-                        st.success("✅ All ledger entries matched!")
+                        st.success(f"✅ {get_text('new_audit.all_ledger_matched')}")
                 
-                # Email Section (only for Professional and Enterprise)
                 if check_feature_access(st.session_state.firm_id, "email_reports"):
                     st.markdown("---")
-                    st.subheader("📧 Email Report to Client")
+                    st.subheader(f"📧 {get_text('email_report.title')}")
                     
                     with st.form(key="email_form"):
                         col1, col2 = st.columns(2)
                         with col1:
-                            client_email = st.text_input("Client Email Address", placeholder="client@company.com")
+                            client_email = st.text_input(get_text("email_report.client_email"), placeholder="client@company.com")
                         with col2:
-                            client_name = st.text_input("Client Name", placeholder="Client Company Name")
+                            client_name = st.text_input(get_text("email_report.client_name"), placeholder="Client Company Name")
                         
-                        send_button = st.form_submit_button("📧 Send Report via Email", type="secondary")
+                        send_button = st.form_submit_button(f"📧 {get_text('email_report.send_button')}", type="secondary")
                         
                         if send_button:
                             if client_email and client_name:
-                                with st.spinner("Generating and sending report..."):
+                                with st.spinner(get_text("email_report.sending")):
                                     branding = get_firm_branding(st.session_state.firm_id)
                                     
                                     pdf_path = f"temp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
@@ -755,21 +728,17 @@ else:
                                     os.unlink(pdf_path)
                                     
                                     if success:
-                                        st.success(f"✅ Report sent to {client_email}")
+                                        st.success(get_text("email_report.success", email=client_email))
                                         log_activity(st.session_state.firm_id, st.session_state.user_email, "send_report", {
                                             "recipient": client_email,
                                             "client_name": client_name
                                         })
                                     else:
-                                        st.error(f"Failed to send: {message}")
+                                        st.error(get_text("email_report.error", error=message))
                             else:
-                                st.warning("Please enter both client email and name")
+                                st.warning(get_text("email_report.warning"))
                 else:
-                    st.info("📧 Email reports are available on Professional and Enterprise plans. Upgrade to send reports.")
-                
-                # AI Recommendations
-                st.markdown("---")
-                st.subheader("💡 AI Recommendations")
+                    st.info(get_text("subscription.email_reports_required"))
                 
                 recommendations = generate_recommendations(
                     audit_data=result,
@@ -781,74 +750,75 @@ else:
                 
                 display_recommendations(recommendations)
                 
-                if st.button("📋 Export Recommendations as Checklist"):
+                if st.button(f"📋 {get_text('recommendations.export_checklist')}"):
                     checklist = []
                     for rec in recommendations:
                         checklist.append(f"□ [{rec['priority']}] {rec['category']}: {rec['recommendation']}")
                     checklist_text = "\n\n".join(checklist)
                     st.code(checklist_text, language="text")
-                    st.caption("Copy this checklist for your audit team")
+                    st.caption(get_text("recommendations.copy_checklist"))
                 
-                if st.button("🔄 Run Another Audit", type="primary"):
+                if st.button(f"🔄 {get_text('new_audit.run_another')}", type="primary"):
                     st.session_state.audit_results = None
                     st.rerun()
     
     # Audit History Page
     elif st.session_state.page == "Audit History":
-        st.markdown("### 📜 Audit History")
+        st.markdown(f"### 📜 {get_text('navigation.audit_history')}")
         
         audits = get_firm_audits(st.session_state.firm_id)
         
         if audits:
             df = pd.DataFrame(audits)
             df_display = df[['filename', 'match_rate', 'fraud_risk', 'predicted_hours', 'created_at']]
-            df_display.columns = ['Filename', 'Match Rate', 'Fraud Risk', 'Predicted Hours', 'Date']
+            df_display.columns = [get_text("audit_history.filename"), get_text("audit_history.match_rate"), 
+                                  get_text("audit_history.fraud_risk"), get_text("audit_history.predicted_hours"), 
+                                  get_text("audit_history.date")]
             st.dataframe(df_display, use_container_width=True)
         else:
-            st.info("No audits yet. Run your first audit!")
+            st.info(get_text("audit_history.no_audits"))
     
     # Analytics Page
     elif st.session_state.page == "Analytics":
-        st.markdown("### 📊 Analytics & Insights")
+        st.markdown(f"### 📊 {get_text('navigation.analytics')}")
         
         if check_feature_access(st.session_state.firm_id, "advanced_analytics"):
             audits = get_firm_audits(st.session_state.firm_id, limit=500)
             display_analytics_dashboard(audits, st.session_state.user_email.split('@')[0])
             
-            # Automated Report Scheduling
             st.markdown("---")
-            st.subheader("📅 Automated Report Scheduling")
+            st.subheader(f"📅 {get_text('scheduled_reports.title')}")
             
             schedules = get_schedules(st.session_state.firm_id)
             
             if schedules:
-                st.markdown("#### Your Scheduled Reports")
+                st.markdown(f"#### {get_text('scheduled_reports.your_schedules')}")
                 display_schedules(schedules)
             
-            with st.expander("➕ Create New Schedule"):
+            with st.expander(f"➕ {get_text('scheduled_reports.create_new')}"):
                 with st.form("schedule_form"):
-                    schedule_name = st.text_input("Schedule Name", placeholder="Monthly Client Report")
+                    schedule_name = st.text_input(get_text("scheduled_reports.schedule_name"), placeholder="Monthly Client Report")
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        frequency = st.selectbox("Frequency", ["daily", "weekly", "monthly"])
+                        frequency = st.selectbox(get_text("scheduled_reports.frequency"), ["daily", "weekly", "monthly"])
                     with col2:
-                        schedule_time = st.time_input("Time", value=time(9, 0))
+                        schedule_time = st.time_input(get_text("scheduled_reports.time"), value=time(9, 0))
                     
                     schedule_day = None
                     if frequency == "weekly":
                         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-                        day_name = st.selectbox("Day of Week", days)
+                        day_name = st.selectbox(get_text("scheduled_reports.day_of_week"), days)
                         schedule_day = days.index(day_name)
                     elif frequency == "monthly":
-                        schedule_day = st.number_input("Day of Month", min_value=1, max_value=28, value=1)
+                        schedule_day = st.number_input(get_text("scheduled_reports.day_of_month"), min_value=1, max_value=28, value=1)
                     
-                    recipient_emails = st.text_area("Recipient Emails", placeholder="client@company.com\nmanager@firm.com", 
-                                                    help="Enter one email per line")
+                    recipient_emails = st.text_area(get_text("scheduled_reports.recipient_emails"), placeholder="client@company.com\nmanager@firm.com", 
+                                                    help=get_text("scheduled_reports.emails_help"))
                     
-                    client_name = st.text_input("Client Name (optional)", placeholder="Client Company Name")
+                    client_name = st.text_input(get_text("scheduled_reports.client_name_optional"), placeholder="Client Company Name")
                     
-                    submitted = st.form_submit_button("Create Schedule")
+                    submitted = st.form_submit_button(get_text("scheduled_reports.create_button"))
                     
                     if submitted and schedule_name and recipient_emails:
                         emails_list = [e.strip() for e in recipient_emails.split('\n') if e.strip()]
@@ -862,7 +832,7 @@ else:
                             schedule_day
                         )
                         if success:
-                            st.success(f"Schedule '{schedule_name}' created!")
+                            st.success(get_text("scheduled_reports.schedule_created", name=schedule_name))
                             log_activity(st.session_state.firm_id, st.session_state.user_email, "create_schedule", {
                                 "schedule_name": schedule_name,
                                 "frequency": frequency
@@ -871,60 +841,66 @@ else:
                         else:
                             st.error(f"Error: {result}")
         else:
-            st.info("📊 Advanced analytics are available on Professional and Enterprise plans.")
+            st.info(get_text("subscription.advanced_analytics_required"))
             st.markdown("**Features include:**")
-            st.markdown("- Time saved tracking")
-            st.markdown("- Benchmark comparisons")
-            st.markdown("- Monthly trends")
-            st.markdown("- Scheduled reports")
+            st.markdown(f"- {get_text('subscription.time_saved_tracking')}")
+            st.markdown(f"- {get_text('subscription.benchmark_comparisons')}")
+            st.markdown(f"- {get_text('subscription.monthly_trends')}")
+            st.markdown(f"- {get_text('subscription.scheduled_reports')}")
             
-            if st.button("Upgrade to Unlock", key="upgrade_analytics"):
+            if st.button(get_text("subscription.upgrade_to_unlock"), key="upgrade_analytics"):
                 st.session_state.page = "Settings"
                 st.rerun()
     
     # Activity Log Page
     elif st.session_state.page == "Activity Log":
-        st.markdown("### 📋 Activity Log")
+        st.markdown(f"### 📋 {get_text('navigation.activity_log')}")
         
         if check_feature_access(st.session_state.firm_id, "activity_log"):
             display_activity_dashboard(st.session_state.firm_id)
         else:
-            st.info("📋 Activity logging is available on Professional and Enterprise plans.")
+            st.info(get_text("subscription.activity_logging_required"))
             st.markdown("**Features include:**")
-            st.markdown("- Track all user actions")
-            st.markdown("- Usage analytics dashboard")
-            st.markdown("- Export activity logs")
-            st.markdown("- 90-day audit trail")
+            st.markdown(f"- {get_text('subscription.track_user_actions')}")
+            st.markdown(f"- {get_text('subscription.usage_analytics')}")
+            st.markdown(f"- {get_text('subscription.export_logs')}")
+            st.markdown(f"- {get_text('subscription.audit_trail')}")
             
-            if st.button("Upgrade to Unlock", key="upgrade_activity"):
+            if st.button(get_text("subscription.upgrade_to_unlock"), key="upgrade_activity"):
                 st.session_state.page = "Settings"
                 st.rerun()
     
     # Settings Page
     elif st.session_state.page == "Settings":
-        st.markdown("### ⚙️ Settings")
+        st.markdown(f"### ⚙️ {get_text('settings.title')}")
         
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["Team Management", "Firm Settings", "Subscription", "Branding", "API"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            get_text("settings.team_management"),
+            get_text("settings.firm_settings"),
+            get_text("settings.subscription"),
+            get_text("settings.branding"),
+            get_text("settings.api")
+        ])
         
         # Team Management Tab
         with tab1:
-            st.markdown("#### 👥 Team Members")
+            st.markdown(f"#### 👥 {get_text('settings.team_management')}")
             
             if check_feature_access(st.session_state.firm_id, "team_members"):
                 if st.session_state.user_role == "owner":
                     team_members = get_team_members(st.session_state.firm_id)
                     
                     if team_members:
-                        st.markdown("**Current Team:**")
+                        st.markdown(f"**{get_text('settings.current_team')}:**")
                         for member in team_members:
                             col1, col2, col3 = st.columns([2, 2, 1])
                             with col1:
                                 st.write(member["email"])
                             with col2:
-                                st.write(f"Role: {member['role']}")
+                                st.write(f"{get_text('settings.role')}: {member['role']}")
                             with col3:
                                 if member["role"] != "owner":
-                                    if st.button(f"Remove", key=f"remove_{member['id']}"):
+                                    if st.button(get_text("settings.remove"), key=f"remove_{member['id']}"):
                                         success, message = remove_team_member(
                                             member["id"], 
                                             st.session_state.firm_id,
@@ -940,12 +916,12 @@ else:
                                             st.error(message)
                     
                     st.markdown("---")
-                    st.markdown("#### ✉️ Invite New Team Member")
+                    st.markdown(f"#### ✉️ {get_text('settings.invite_new_member')}")
                     
                     with st.form("invite_form"):
-                        invite_email = st.text_input("Email Address", placeholder="colleague@firm.com")
-                        invite_role = st.selectbox("Role", ["staff", "manager"])
-                        submitted = st.form_submit_button("Generate Invite Link")
+                        invite_email = st.text_input(get_text("settings.email"), placeholder="colleague@firm.com")
+                        invite_role = st.selectbox(get_text("settings.role"), ["staff", "manager"])
+                        submitted = st.form_submit_button(get_text("settings.generate_link"))
                         
                         if submitted and invite_email:
                             success, invite_url, result = create_invite(
@@ -954,9 +930,9 @@ else:
                                 invite_role
                             )
                             if success:
-                                st.success("Invite link generated!")
+                                st.success(get_text("settings.invite_link_generated"))
                                 st.code(invite_url, language="text")
-                                st.caption("Copy this link and send it to your team member. Link expires in 7 days.")
+                                st.caption(get_text("settings.invite_link_expires"))
                                 log_activity(st.session_state.firm_id, st.session_state.user_email, "create_invite", {
                                     "invite_email": invite_email,
                                     "role": invite_role
@@ -964,49 +940,46 @@ else:
                             else:
                                 st.error(f"Failed to create invite: {result}")
                 else:
-                    st.info("Team management is only available to firm owners.")
+                    st.info(get_text("settings.team_management_owner_only"))
                     team_members = get_team_members(st.session_state.firm_id)
                     if team_members:
-                        st.markdown("**Your Team:**")
+                        st.markdown(f"**{get_text('settings.your_team')}:**")
                         for member in team_members:
                             st.write(f"- {member['email']} ({member['role']})")
             else:
-                st.info("👥 Team management is available on Professional and Enterprise plans. Upgrade to invite team members.")
-                if st.button("View Subscription Plans", key="upgrade_team"):
+                st.info(get_text("subscription.team_management_required"))
+                if st.button(get_text("subscription.view_plans"), key="upgrade_team"):
                     st.session_state.page = "Settings"
                     st.rerun()
         
         # Firm Settings Tab
         with tab2:
-            st.markdown("#### 🏢 Firm Settings")
-            
-            # Email Digest Settings
+            st.markdown(f"#### 🏢 {get_text('settings.firm_settings')}")
             display_digest_settings(st.session_state.firm_id)
-            
             st.markdown("---")
-            st.info("Coming soon: Subscription management, billing, API keys")
-            st.caption(f"Firm ID: {st.session_state.firm_id}")
+            st.info(get_text("settings.coming_soon"))
+            st.caption(f"{get_text('settings.firm_id')}: {st.session_state.firm_id}")
         
         # Subscription Tab
         with tab3:
-            st.markdown("#### 💳 Subscription & Billing")
+            st.markdown(f"#### 💳 {get_text('subscription.title')}")
             
             current_sub = get_firm_subscription(st.session_state.firm_id)
             current_tier = current_sub.get("subscription_tier", "free")
             tiers = get_subscription_tiers()
             
-            st.markdown(f"**Current Plan:** {tiers[current_tier]['name']}")
+            st.markdown(f"**{get_text('subscription.current_plan')}:** {tiers[current_tier]['name']}")
             
             if current_tier == "free":
-                st.info("You are on the Free plan. Upgrade to access more features.")
-                st.caption("Free plan includes: 10 audits, basic reconciliation only")
+                st.info(get_text("subscription.free_plan_info"))
+                st.caption(get_text("subscription.free_plan_features"))
             elif current_tier == "professional":
-                st.success("You are on the Professional plan. Unlimited audits, PDF parsing, team members.")
+                st.success(get_text("subscription.professional_plan_info"))
             else:
-                st.success("You are on the Enterprise plan. Everything included + client portal + API access.")
+                st.success(get_text("subscription.enterprise_plan_info"))
             
             st.markdown("---")
-            st.markdown("### Available Plans")
+            st.markdown(f"### {get_text('subscription.available_plans')}")
             
             col1, col2, col3 = st.columns(3)
             
@@ -1028,42 +1001,41 @@ else:
                     st.markdown("---")
                     
                     if tier_id == current_tier:
-                        st.button("Current Plan", disabled=True, key=f"current_{tier_id}_{idx}")
+                        st.button(get_text("subscription.current_plan"), disabled=True, key=f"current_{tier_id}_{idx}")
                     elif tier_id == "free":
                         if current_tier != "free":
-                            if st.button("Downgrade to Free", key=f"btn_free_{idx}"):
+                            if st.button(get_text("subscription.downgrade"), key=f"btn_free_{idx}"):
                                 update_subscription(st.session_state.firm_id, "free")
-                                st.success("Downgraded to Free plan")
+                                st.success(get_text("subscription.downgraded"))
                                 log_activity(st.session_state.firm_id, st.session_state.user_email, "change_subscription", {
                                     "new_plan": "free"
                                 })
                                 st.rerun()
                     else:
-                        if st.button(f"Upgrade to {tier['name']}", key=f"btn_upgrade_{tier_id}_{idx}"):
-                            st.info(f"Payment integration coming soon. Please contact sales for {tier['name']} plan.")
+                        if st.button(get_text("subscription.upgrade"), key=f"btn_upgrade_{tier_id}_{idx}"):
+                            st.info(get_text("subscription.payment_coming_soon"))
         
         # Branding Tab
         with tab4:
-            st.markdown("#### 🎨 Branding & White Label")
+            st.markdown(f"#### 🎨 {get_text('settings.branding')}")
             
             if check_feature_access(st.session_state.firm_id, "custom_branding"):
                 branding = get_firm_branding(st.session_state.firm_id)
                 
-                st.markdown("Customize how your audit reports look to clients.")
+                st.markdown(get_text("branding.customize_reports"))
                 
-                # Logo upload
-                st.markdown("**Logo Upload**")
-                st.caption("Upload your firm logo (PNG or JPG, max 2MB)")
+                st.markdown(f"**{get_text('branding.logo_upload')}**")
+                st.caption(get_text("branding.logo_help"))
                 
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    logo_file = st.file_uploader("Choose logo file", type=['png', 'jpg', 'jpeg'], key="logo_upload")
+                    logo_file = st.file_uploader(get_text("branding.choose_logo"), type=['png', 'jpg', 'jpeg'], key="logo_upload")
                     if logo_file:
-                        if st.button("Upload Logo", key="btn_upload_logo"):
+                        if st.button(get_text("branding.upload_logo"), key="btn_upload_logo"):
                             success, result = save_firm_logo(st.session_state.firm_id, logo_file)
                             if success:
-                                st.success("Logo uploaded successfully!")
+                                st.success(get_text("branding.logo_uploaded"))
                                 log_activity(st.session_state.firm_id, st.session_state.user_email, "upload_logo", {})
                                 st.rerun()
                             else:
@@ -1072,33 +1044,32 @@ else:
                 with col2:
                     if branding.get('logo_url'):
                         st.image(branding['logo_url'], width=100)
-                        if st.button("Remove Logo", key="btn_remove_logo"):
+                        if st.button(get_text("branding.remove_logo"), key="btn_remove_logo"):
                             remove_logo(st.session_state.firm_id)
-                            st.success("Logo removed")
+                            st.success(get_text("branding.logo_removed"))
                             st.rerun()
                 
                 st.markdown("---")
                 
-                # Brand colors
-                st.markdown("**Brand Colors**")
+                st.markdown(f"**{get_text('branding.brand_colors')}**")
                 
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    primary_color = st.color_picker("Primary Color", branding.get('primary_color', '#1f77b4'), key="primary_color_picker")
-                    st.caption("Used for headings and accents")
+                    primary_color = st.color_picker(get_text("branding.primary_color"), branding.get('primary_color', '#1f77b4'), key="primary_color_picker")
+                    st.caption(get_text("branding.primary_color_help"))
                 
                 with col2:
-                    secondary_color = st.color_picker("Secondary Color", branding.get('secondary_color', '#4ecdc4'), key="secondary_color_picker")
-                    st.caption("Used for success indicators")
+                    secondary_color = st.color_picker(get_text("branding.secondary_color"), branding.get('secondary_color', '#4ecdc4'), key="secondary_color_picker")
+                    st.caption(get_text("branding.secondary_color_help"))
                 
-                if st.button("Save Colors", key="btn_save_colors"):
+                if st.button(get_text("branding.save_colors"), key="btn_save_colors"):
                     update_branding(
                         st.session_state.firm_id,
                         primary_color=primary_color,
                         secondary_color=secondary_color
                     )
-                    st.success("Colors saved!")
+                    st.success(get_text("branding.colors_saved"))
                     log_activity(st.session_state.firm_id, st.session_state.user_email, "update_branding", {
                         "primary_color": primary_color,
                         "secondary_color": secondary_color
@@ -1107,33 +1078,32 @@ else:
                 
                 st.markdown("---")
                 
-                # Custom footer
-                st.markdown("**Custom Footer**")
-                footer_text = st.text_area("Footer Text", branding.get('footer_text', ''), 
-                                           placeholder="Your firm name | Phone | Email | Website",
-                                           help="This text will appear at the bottom of every PDF report",
+                st.markdown(f"**{get_text('branding.custom_footer')}**")
+                footer_text = st.text_area(get_text("branding.footer_text"), branding.get('footer_text', ''), 
+                                           placeholder=get_text("branding.footer_placeholder"),
+                                           help=get_text("branding.footer_help"),
                                            key="footer_text_area")
                 
-                if st.button("Save Footer", key="btn_save_footer"):
+                if st.button(get_text("branding.save_footer"), key="btn_save_footer"):
                     update_branding(
                         st.session_state.firm_id,
                         footer_text=footer_text
                     )
-                    st.success("Footer saved!")
+                    st.success(get_text("branding.footer_saved"))
                     log_activity(st.session_state.firm_id, st.session_state.user_email, "update_footer", {})
                     st.rerun()
                 
                 st.markdown("---")
-                st.info("Premium branding is available on Enterprise plans. Upgrade to white-label reports.")
+                st.info(get_text("branding.enterprise_branding_info"))
             else:
-                st.info("🎨 Custom branding is available on Enterprise plans ($599/month).")
+                st.info(get_text("branding.custom_branding_required"))
                 st.markdown("**Features include:**")
-                st.markdown("- Your logo on all reports")
-                st.markdown("- Custom brand colors")
-                st.markdown("- Custom footer with your contact details")
-                st.markdown("- White-label reports (no ARAI branding)")
+                st.markdown(f"- {get_text('branding.your_logo')}")
+                st.markdown(f"- {get_text('branding.custom_colors')}")
+                st.markdown(f"- {get_text('branding.custom_footer')}")
+                st.markdown(f"- {get_text('branding.white_label')}")
                 
-                if st.button("Upgrade to Enterprise", key="upgrade_branding"):
+                if st.button(get_text("subscription.upgrade_to_enterprise"), key="upgrade_branding"):
                     st.session_state.page = "Settings"
                     st.rerun()
         
@@ -1142,17 +1112,17 @@ else:
             if check_feature_access(st.session_state.firm_id, "api_access"):
                 display_api_dashboard(st.session_state.firm_id)
             else:
-                st.info("🔌 API access is available on Enterprise plans ($599/month).")
+                st.info(get_text("subscription.api_access_required"))
                 st.markdown("**Features include:**")
-                st.markdown("- REST API for programmatic access")
-                st.markdown("- Webhooks for real-time notifications")
-                st.markdown("- API keys with granular permissions")
-                st.markdown("- Usage analytics dashboard")
-                st.markdown("- Dedicated API support")
+                st.markdown(f"- {get_text('api.rest_api')}")
+                st.markdown(f"- {get_text('api.webhooks')}")
+                st.markdown(f"- {get_text('api.api_keys')}")
+                st.markdown(f"- {get_text('api.usage_analytics')}")
+                st.markdown(f"- {get_text('api.dedicated_support')}")
                 
-                if st.button("Upgrade to Enterprise", key="upgrade_api"):
+                if st.button(get_text("subscription.upgrade_to_enterprise"), key="upgrade_api"):
                     st.session_state.page = "Settings"
                     st.rerun()
     
     st.markdown("---")
-    st.caption("© 2025 ARAI | Audit Risk & AI Intelligence | Finance Done Smarter")
+    st.caption(get_text("footer.copyright"))

@@ -1,0 +1,118 @@
+{
+    "app_name": "ARAI",
+    "tagline": "Audit Risk & AI Intelligence",
+    "login": {
+        "title": "Login",
+        "email": "Email",
+        "password": "Password",
+        "button": "Login",
+        "register": "Register",
+        "register_title": "Register Your Firm",
+        "firm_name": "Firm Name",
+        "confirm_password": "Confirm Password"
+    },
+    "navigation": {
+        "dashboard": "Dashboard",
+        "new_audit": "New Audit",
+        "audit_history": "Audit History",
+        "analytics": "Analytics",
+        "activity_log": "Activity Log",
+        "settings": "Settings"
+    },
+    "dashboard": {
+        "welcome": "Welcome to ARAI",
+        "total_audits": "Total Audits",
+        "avg_match_rate": "Avg Match Rate",
+        "avg_fraud_risk": "Avg Fraud Risk",
+        "time_saved": "Time Saved",
+        "quick_actions": "Quick Actions",
+        "run_new_audit": "Run New Audit",
+        "view_history": "View Audit History",
+        "match_rate_trend": "Match Rate Trend",
+        "fraud_risk_distribution": "Fraud Risk Distribution",
+        "improving": "Improving",
+        "declining": "Declining"
+    },
+    "new_audit": {
+        "title": "New Audit",
+        "bank_statement": "Bank Statement",
+        "ledger": "Ledger",
+        "upload_bank": "Upload Bank Statement (Excel or PDF)",
+        "upload_ledger": "Upload Ledger (Excel only)",
+        "run_audit": "Run Audit",
+        "processing": "Running AI-powered audit...",
+        "audit_complete": "Audit complete! Match rate: {match_rate}",
+        "matched": "Matched",
+        "unmatched_bank": "Unmatched Bank",
+        "unmatched_ledger": "Unmatched Ledger",
+        "fraud_risk": "Fraud Risk"
+    },
+    "ai_predictions": {
+        "title": "AI Predictions",
+        "high_risk": "HIGH RISK",
+        "medium_risk": "MEDIUM RISK",
+        "low_risk": "LOW RISK",
+        "fraud_probability": "fraud probability",
+        "predicted_time": "Predicted Audit Time",
+        "hours": "hours"
+    },
+    "problem_areas": {
+        "title": "Problem Areas Identified",
+        "revenue_recognition": "Revenue Recognition",
+        "inventory_valuation": "Inventory Valuation",
+        "accounts_payable": "Accounts Payable",
+        "cash_transactions": "Cash Transactions",
+        "fixed_assets": "Fixed Assets",
+        "related_parties": "Related Parties"
+    },
+    "resource_allocation": {
+        "title": "Resource Allocation Recommendations",
+        "senior": "Senior Auditor",
+        "junior": "Junior Auditor",
+        "manager": "Audit Manager",
+        "team": "Senior+Junior Team"
+    },
+    "anomalies": {
+        "title": "Anomalies Detected",
+        "date": "Date",
+        "amount": "Amount",
+        "description": "Description",
+        "risk_level": "Risk Level"
+    },
+    "email_report": {
+        "title": "Email Report to Client",
+        "client_email": "Client Email Address",
+        "client_name": "Client Name",
+        "send_button": "Send Report via Email",
+        "sending": "Generating and sending report...",
+        "success": "Report sent to {email}",
+        "error": "Failed to send: {error}",
+        "warning": "Please enter both client email and name"
+    },
+    "settings": {
+        "title": "Settings",
+        "team_management": "Team Management",
+        "firm_settings": "Firm Settings",
+        "subscription": "Subscription",
+        "branding": "Branding",
+        "api": "API",
+        "current_team": "Current Team",
+        "invite_new_member": "Invite New Team Member",
+        "email": "Email Address",
+        "role": "Role",
+        "generate_link": "Generate Invite Link"
+    },
+    "subscription": {
+        "title": "Subscription & Billing",
+        "current_plan": "Current Plan",
+        "free_plan": "Free",
+        "professional_plan": "Professional",
+        "enterprise_plan": "Enterprise",
+        "upgrade": "Upgrade",
+        "downgrade": "Downgrade",
+        "features": "Features"
+    },
+    "footer": {
+        "copyright": "© 2025 ARAI | Audit Risk & AI Intelligence | Finance Done Smarter"
+    }
+}
