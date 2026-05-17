@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import tempfile
 import os
-from datetime import datetime
+from datetime import datetime, time
 from supabase import create_client as supabase_create_client
 from auth import register_firm, login_user, get_firm_audits, save_audit, get_firm_stats, register_user_for_existing_firm
 from report_generator import generate_audit_pdf
@@ -12,6 +12,8 @@ from subscription import get_firm_subscription, get_subscription_tiers, update_s
 from recommendations import generate_recommendations, display_recommendations
 from branding import get_firm_branding, update_branding, save_firm_logo, remove_logo
 from analytics import display_analytics_dashboard, calculate_time_saved, calculate_cost_savings
+from scheduler import create_schedule, get_schedules, display_schedules, delete_schedule
+from activity_logger import log_activity, display_activity_dashboard
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -117,6 +119,8 @@ if not st.session_state.authenticated:
                     st.session_state.firm_id = firm_id
                     st.session_state.user_email = email
                     st.session_state.user_role = role
+                    # Log activity
+                    log_activity(firm_id, email, "login", {"role": role})
                     st.rerun()
                 else:
                     st.error(message)
@@ -186,7 +190,7 @@ else:
         
         st.markdown("---")
         
-        page = st.radio("Navigation", ["Dashboard", "New Audit", "Audit History", "Analytics", "Settings"])
+        page = st.radio("Navigation", ["Dashboard", "New Audit", "Audit History", "Analytics", "Activity Log", "Settings"])
         
         if page != "New Audit" and st.session_state.page == "New Audit":
             st.session_state.audit_results = None
@@ -204,6 +208,7 @@ else:
         st.markdown("---")
         
         if st.button("Logout"):
+            log_activity(st.session_state.firm_id, st.session_state.user_email, "logout", {})
             for key in ["authenticated", "firm_id", "user_email", "user_role", "audit_results"]:
                 if key in st.session_state:
                     del st.session_state[key]
@@ -565,6 +570,13 @@ else:
                                     audit_data=audit_data_summary
                                 )
                                 
+                                # Log activity
+                                log_activity(st.session_state.firm_id, st.session_state.user_email, "run_audit", {
+                                    "filename": bank_file.name,
+                                    "match_rate": result['summary']['match_rate'],
+                                    "transaction_count": len(bank_df)
+                                })
+                                
                                 os.unlink(bank_path)
                                 os.unlink(ledger_path)
                                 
@@ -682,6 +694,11 @@ else:
                                     
                                     if success:
                                         st.success(f"✅ Report sent to {client_email}")
+                                        # Log activity
+                                        log_activity(st.session_state.firm_id, st.session_state.user_email, "send_report", {
+                                            "recipient": client_email,
+                                            "client_name": client_name
+                                        })
                                     else:
                                         st.error(f"Failed to send: {message}")
                             else:
@@ -733,15 +750,95 @@ else:
     elif st.session_state.page == "Analytics":
         st.markdown("### 📊 Analytics & Insights")
         
-        audits = get_firm_audits(st.session_state.firm_id, limit=500)
+        if check_feature_access(st.session_state.firm_id, "advanced_analytics"):
+            audits = get_firm_audits(st.session_state.firm_id, limit=500)
+            display_analytics_dashboard(audits, st.session_state.user_email.split('@')[0])
+            
+            # Automated Report Scheduling
+            st.markdown("---")
+            st.subheader("📅 Automated Report Scheduling")
+            
+            # Get existing schedules
+            schedules = get_schedules(st.session_state.firm_id)
+            
+            # Display existing schedules
+            if schedules:
+                st.markdown("#### Your Scheduled Reports")
+                display_schedules(schedules)
+            
+            # Create new schedule
+            with st.expander("➕ Create New Schedule"):
+                with st.form("schedule_form"):
+                    schedule_name = st.text_input("Schedule Name", placeholder="Monthly Client Report")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        frequency = st.selectbox("Frequency", ["daily", "weekly", "monthly"])
+                    with col2:
+                        schedule_time = st.time_input("Time", value=time(9, 0))
+                    
+                    schedule_day = None
+                    if frequency == "weekly":
+                        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                        day_name = st.selectbox("Day of Week", days)
+                        schedule_day = days.index(day_name)
+                    elif frequency == "monthly":
+                        schedule_day = st.number_input("Day of Month", min_value=1, max_value=28, value=1)
+                    
+                    recipient_emails = st.text_area("Recipient Emails", placeholder="client@company.com\nmanager@firm.com", 
+                                                    help="Enter one email per line")
+                    
+                    client_name = st.text_input("Client Name (optional)", placeholder="Client Company Name")
+                    
+                    submitted = st.form_submit_button("Create Schedule")
+                    
+                    if submitted and schedule_name and recipient_emails:
+                        emails_list = [e.strip() for e in recipient_emails.split('\n') if e.strip()]
+                        success, result = create_schedule(
+                            st.session_state.firm_id,
+                            schedule_name,
+                            frequency,
+                            schedule_time,
+                            emails_list,
+                            client_name if client_name else None,
+                            schedule_day
+                        )
+                        if success:
+                            st.success(f"Schedule '{schedule_name}' created!")
+                            log_activity(st.session_state.firm_id, st.session_state.user_email, "create_schedule", {
+                                "schedule_name": schedule_name,
+                                "frequency": frequency
+                            })
+                            st.rerun()
+                        else:
+                            st.error(f"Error: {result}")
+        else:
+            st.info("📊 Advanced analytics are available on Professional and Enterprise plans.")
+            st.markdown("**Features include:**")
+            st.markdown("- Time saved tracking")
+            st.markdown("- Benchmark comparisons")
+            st.markdown("- Monthly trends")
+            st.markdown("- Scheduled reports")
+            
+            if st.button("Upgrade to Unlock"):
+                st.session_state.page = "Settings"
+                st.rerun()
+    
+    # Activity Log Page
+    elif st.session_state.page == "Activity Log":
+        st.markdown("### 📋 Activity Log")
         
-        display_analytics_dashboard(audits, st.session_state.user_email.split('@')[0])
-        
-        # Upgrade prompt for more analytics
-        current_sub = get_firm_subscription(st.session_state.firm_id)
-        if current_sub.get('subscription_tier') == 'free' and len(audits) >= 10:
-            st.info("📊 Advanced analytics and historical data are available on Professional and Enterprise plans. Upgrade to see 12+ months of trends and custom reports.")
-            if st.button("Upgrade Now"):
+        if check_feature_access(st.session_state.firm_id, "activity_log"):
+            display_activity_dashboard(st.session_state.firm_id)
+        else:
+            st.info("📋 Activity logging is available on Professional and Enterprise plans.")
+            st.markdown("**Features include:**")
+            st.markdown("- Track all user actions")
+            st.markdown("- Usage analytics dashboard")
+            st.markdown("- Export activity logs")
+            st.markdown("- 90-day audit trail")
+            
+            if st.button("Upgrade to Unlock"):
                 st.session_state.page = "Settings"
                 st.rerun()
     
@@ -777,6 +874,9 @@ else:
                                         )
                                         if success:
                                             st.success(message)
+                                            log_activity(st.session_state.firm_id, st.session_state.user_email, "remove_team_member", {
+                                                "removed_email": member["email"]
+                                            })
                                             st.rerun()
                                         else:
                                             st.error(message)
@@ -799,6 +899,10 @@ else:
                                 st.success("Invite link generated!")
                                 st.code(invite_url, language="text")
                                 st.caption("Copy this link and send it to your team member. Link expires in 7 days.")
+                                log_activity(st.session_state.firm_id, st.session_state.user_email, "create_invite", {
+                                    "invite_email": invite_email,
+                                    "role": invite_role
+                                })
                             else:
                                 st.error(f"Failed to create invite: {result}")
                 else:
@@ -867,6 +971,9 @@ else:
                             if st.button("Downgrade to Free", key="btn_free"):
                                 update_subscription(st.session_state.firm_id, "free")
                                 st.success("Downgraded to Free plan")
+                                log_activity(st.session_state.firm_id, st.session_state.user_email, "change_subscription", {
+                                    "new_plan": "free"
+                                })
                                 st.rerun()
                     else:
                         if st.button(f"Upgrade to {tier['name']}", key=f"btn_{tier_id}"):
@@ -894,6 +1001,7 @@ else:
                             success, result = save_firm_logo(st.session_state.firm_id, logo_file)
                             if success:
                                 st.success("Logo uploaded successfully!")
+                                log_activity(st.session_state.firm_id, st.session_state.user_email, "upload_logo", {})
                                 st.rerun()
                             else:
                                 st.error(f"Error: {result}")
@@ -928,6 +1036,10 @@ else:
                         secondary_color=secondary_color
                     )
                     st.success("Colors saved!")
+                    log_activity(st.session_state.firm_id, st.session_state.user_email, "update_branding", {
+                        "primary_color": primary_color,
+                        "secondary_color": secondary_color
+                    })
                     st.rerun()
                 
                 st.markdown("---")
@@ -944,6 +1056,7 @@ else:
                         footer_text=footer_text
                     )
                     st.success("Footer saved!")
+                    log_activity(st.session_state.firm_id, st.session_state.user_email, "update_footer", {})
                     st.rerun()
                 
                 st.markdown("---")

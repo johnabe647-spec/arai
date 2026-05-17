@@ -1,16 +1,5 @@
 import streamlit as st
 from supabase import create_client
-import stripe
-
-# Initialize Stripe (add your keys to secrets later)
-def get_stripe_keys():
-    try:
-        return {
-            "public_key": st.secrets["STRIPE_PUBLIC_KEY"],
-            "secret_key": st.secrets["STRIPE_SECRET_KEY"]
-        }
-    except:
-        return None
 
 def get_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -48,7 +37,6 @@ def check_feature_access(firm_id, feature):
     sub = get_firm_subscription(firm_id)
     tier = sub.get("subscription_tier", "free")
     
-    # Feature access by tier
     features = {
         "basic_reconciliation": ["free", "professional", "enterprise"],
         "pdf_parsing": ["professional", "enterprise"],
@@ -56,7 +44,12 @@ def check_feature_access(firm_id, feature):
         "team_members": ["professional", "enterprise"],
         "client_portal": ["enterprise"],
         "api_access": ["enterprise"],
-        "priority_support": ["enterprise"]
+        "priority_support": ["enterprise"],
+        "email_reports": ["professional", "enterprise"],
+        "custom_branding": ["enterprise"],
+        "activity_log": ["professional", "enterprise"],
+        "advanced_analytics": ["professional", "enterprise"],
+        "scheduled_reports": ["professional", "enterprise"]
     }
     
     return feature in features.get(feature, []) and tier in features.get(feature, [])
@@ -67,42 +60,46 @@ def get_subscription_tiers():
         "free": {
             "name": "Free",
             "price": 0,
-            "price_id": None,
             "features": [
                 "✅ Basic reconciliation",
                 "✅ Up to 10 audits",
-                "✅ 1 team member",
                 "❌ PDF bank parsing",
                 "❌ Team members",
+                "❌ Email reports",
                 "❌ Client portal",
-                "❌ Priority support"
+                "❌ Priority support",
+                "❌ Custom branding",
+                "❌ Activity logging",
+                "❌ Scheduled reports"
             ]
         },
         "professional": {
             "name": "Professional",
             "price": 299,
-            "price_id": "price_professional",  # Replace with actual Stripe price ID
             "features": [
                 "✅ Unlimited reconciliations",
                 "✅ PDF bank parsing",
                 "✅ Up to 5 team members",
                 "✅ Email reports",
+                "✅ Activity logging",
+                "✅ Scheduled reports",
                 "✅ Audit history",
                 "❌ Client portal",
+                "❌ Custom branding",
                 "❌ Priority support"
             ]
         },
         "enterprise": {
             "name": "Enterprise",
             "price": 599,
-            "price_id": "price_enterprise",  # Replace with actual Stripe price ID
             "features": [
                 "✅ Everything in Professional",
                 "✅ Unlimited team members",
                 "✅ Client portal access",
+                "✅ Custom branding",
                 "✅ API access",
                 "✅ Priority support",
-                "✅ Custom branding",
+                "✅ White-label reports",
                 "✅ Dedicated account manager"
             ]
         }
