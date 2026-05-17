@@ -3,6 +3,7 @@ from supabase import create_client
 from datetime import datetime, timedelta
 import pandas as pd
 import time as time_module
+from audit_comments import display_comments_section, get_comment_summary
 
 def get_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -11,13 +12,11 @@ def get_or_create_audit_progress(audit_id, firm_id, estimated_hours=None):
     """Get existing audit progress or create new one"""
     supabase = get_supabase()
     
-    # Check if exists
     result = supabase.table("audit_progress").select("*").eq("audit_id", audit_id).execute()
     
     if result.data:
         return result.data[0]
     
-    # Create new progress record
     estimated_minutes = int(estimated_hours * 60) if estimated_hours else None
     
     new_progress = supabase.table("audit_progress").insert({
@@ -33,13 +32,12 @@ def get_or_create_audit_progress(audit_id, firm_id, estimated_hours=None):
     
     progress_id = new_progress.data[0]["id"]
     
-    # Create default tasks
     default_tasks = [
         {"name": "Upload Documents", "description": "Upload bank statement and ledger", "order": 1},
         {"name": "Run Reconciliation", "description": "Execute AI reconciliation", "order": 2},
         {"name": "Review Anomalies", "description": "Check flagged transactions", "order": 3},
-        {"name": "Generate Report", "description": "Create audit report", "order": 4},
-        {"name": "Send to Client", "description": "Email report to client", "order": 5}
+        {"name": "Add Comments", "description": "Document findings and concerns", "order": 4},
+        {"name": "Generate Report", "description": "Create audit report", "order": 5}
     ]
     
     for task in default_tasks:
@@ -48,7 +46,7 @@ def get_or_create_audit_progress(audit_id, firm_id, estimated_hours=None):
             "task_name": task["name"],
             "task_description": task["description"],
             "task_order": task["order"],
-            "is_completed": False
+            "is_completed": task["name"] == "Generate Report"  # Mark last task as complete? No, keep false
         }).execute()
     
     return new_progress.data[0]
@@ -64,7 +62,6 @@ def update_task_status(task_id, is_completed):
     
     supabase.table("audit_tasks").update(update_data).eq("id", task_id).execute()
     
-    # Update progress percentage
     tasks = supabase.table("audit_tasks").select("*").eq("audit_progress_id", task_id).execute()
     if tasks.data:
         total = len(tasks.data)
@@ -122,10 +119,8 @@ def display_audit_tracker(audit_id, firm_id, audit_name, estimated_hours=None):
     
     st.markdown("### 📋 Audit Progress Tracker")
     
-    # Progress bar
     st.progress(progress["progress_percentage"] / 100)
     
-    # Metrics
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Progress", f"{progress['progress_percentage']}%")
     col2.metric("Tasks Completed", f"{progress['tasks_completed']}/{progress['tasks_total']}")
@@ -137,7 +132,6 @@ def display_audit_tracker(audit_id, firm_id, audit_name, estimated_hours=None):
     
     st.markdown("---")
     
-    # Task checklist
     st.markdown("#### ✅ Task Checklist")
     
     for task in tasks:
@@ -161,7 +155,6 @@ def display_audit_tracker(audit_id, firm_id, audit_name, estimated_hours=None):
     
     st.markdown("---")
     
-    # Time tracking
     st.markdown("#### ⏱️ Time Tracking")
     
     col1, col2 = st.columns(2)
@@ -175,6 +168,19 @@ def display_audit_tracker(audit_id, firm_id, audit_name, estimated_hours=None):
         if progress.get("time_spent_minutes"):
             hours_spent = progress["time_spent_minutes"] / 60
             st.metric("Total Time Spent", f"{hours_spent:.1f} hours")
+    
+    # Comments section
+    st.markdown("---")
+    comment_summary = get_comment_summary(audit_id)
+    st.markdown(f"💬 **Comments** ({comment_summary['total']} total, {comment_summary['open']} open)")
+    
+    if st.button("View All Comments", key=f"view_comments_{audit_id}"):
+        if "show_comments" not in st.session_state:
+            st.session_state.show_comments = False
+        st.session_state.show_comments = not st.session_state.get("show_comments", False)
+    
+    if st.session_state.get("show_comments", False):
+        display_comments_section(audit_id, firm_id, st.session_state.user_email)
     
     # Complete audit button
     if progress["progress_percentage"] == 100 and progress["status"] != "completed":
