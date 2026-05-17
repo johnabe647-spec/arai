@@ -821,7 +821,7 @@ else:
             st.markdown("- Monthly trends")
             st.markdown("- Scheduled reports")
             
-            if st.button("Upgrade to Unlock"):
+            if st.button("Upgrade to Unlock", key="upgrade_analytics"):
                 st.session_state.page = "Settings"
                 st.rerun()
     
@@ -839,7 +839,7 @@ else:
             st.markdown("- Export activity logs")
             st.markdown("- 90-day audit trail")
             
-            if st.button("Upgrade to Unlock"):
+            if st.button("Upgrade to Unlock", key="upgrade_activity"):
                 st.session_state.page = "Settings"
                 st.rerun()
     
@@ -915,7 +915,7 @@ else:
                             st.write(f"- {member['email']} ({member['role']})")
             else:
                 st.info("👥 Team management is available on Professional and Enterprise plans. Upgrade to invite team members.")
-                if st.button("View Subscription Plans"):
+                if st.button("View Subscription Plans", key="upgrade_team"):
                     st.session_state.page = "Settings"
                     st.rerun()
         
@@ -966,10 +966,10 @@ else:
                     st.markdown("---")
                     
                     if tier_id == current_tier:
-                        st.button("Current Plan", disabled=True, key=f"current_{tier_id}")
+                        st.button("Current Plan", disabled=True, key=f"current_{tier_id}_{idx}")
                     elif tier_id == "free":
                         if current_tier != "free":
-                            if st.button("Downgrade to Free", key="btn_free"):
+                            if st.button("Downgrade to Free", key=f"btn_free_{idx}"):
                                 update_subscription(st.session_state.firm_id, "free")
                                 st.success("Downgraded to Free plan")
                                 log_activity(st.session_state.firm_id, st.session_state.user_email, "change_subscription", {
@@ -977,7 +977,7 @@ else:
                                 })
                                 st.rerun()
                     else:
-                        if st.button(f"Upgrade to {tier['name']}", key=f"btn_{tier_id}"):
+                        if st.button(f"Upgrade to {tier['name']}", key=f"btn_upgrade_{tier_id}_{idx}"):
                             st.info(f"Payment integration coming soon. Please contact sales for {tier['name']} plan.")
         
         # Branding Tab
@@ -998,7 +998,7 @@ else:
                 with col1:
                     logo_file = st.file_uploader("Choose logo file", type=['png', 'jpg', 'jpeg'], key="logo_upload")
                     if logo_file:
-                        if st.button("Upload Logo"):
+                        if st.button("Upload Logo", key="btn_upload_logo"):
                             success, result = save_firm_logo(st.session_state.firm_id, logo_file)
                             if success:
                                 st.success("Logo uploaded successfully!")
@@ -1010,7 +1010,7 @@ else:
                 with col2:
                     if branding.get('logo_url'):
                         st.image(branding['logo_url'], width=100)
-                        if st.button("Remove Logo"):
+                        if st.button("Remove Logo", key="btn_remove_logo"):
                             remove_logo(st.session_state.firm_id)
                             st.success("Logo removed")
                             st.rerun()
@@ -1023,14 +1023,14 @@ else:
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    primary_color = st.color_picker("Primary Color", branding.get('primary_color', '#1f77b4'))
+                    primary_color = st.color_picker("Primary Color", branding.get('primary_color', '#1f77b4'), key="primary_color_picker")
                     st.caption("Used for headings and accents")
                 
                 with col2:
-                    secondary_color = st.color_picker("Secondary Color", branding.get('secondary_color', '#4ecdc4'))
+                    secondary_color = st.color_picker("Secondary Color", branding.get('secondary_color', '#4ecdc4'), key="secondary_color_picker")
                     st.caption("Used for success indicators")
                 
-                if st.button("Save Colors"):
+                if st.button("Save Colors", key="btn_save_colors"):
                     update_branding(
                         st.session_state.firm_id,
                         primary_color=primary_color,
@@ -1049,9 +1049,10 @@ else:
                 st.markdown("**Custom Footer**")
                 footer_text = st.text_area("Footer Text", branding.get('footer_text', ''), 
                                            placeholder="Your firm name | Phone | Email | Website",
-                                           help="This text will appear at the bottom of every PDF report")
+                                           help="This text will appear at the bottom of every PDF report",
+                                           key="footer_text_area")
                 
-                if st.button("Save Footer"):
+                if st.button("Save Footer", key="btn_save_footer"):
                     update_branding(
                         st.session_state.firm_id,
                         footer_text=footer_text
@@ -1070,7 +1071,7 @@ else:
                 st.markdown("- Custom footer with your contact details")
                 st.markdown("- White-label reports (no ARAI branding)")
                 
-                if st.button("Upgrade to Enterprise"):
+                if st.button("Upgrade to Enterprise", key="upgrade_branding"):
                     st.session_state.page = "Settings"
                     st.rerun()
         
@@ -1087,7 +1088,7 @@ else:
                 st.markdown("- Usage analytics dashboard")
                 st.markdown("- Dedicated API support")
                 
-                if st.button("Upgrade to Enterprise"):
+                if st.button("Upgrade to Enterprise", key="upgrade_api"):
                     st.session_state.page = "Settings"
                     st.rerun()
     
