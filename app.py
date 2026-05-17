@@ -25,6 +25,7 @@ from batch_processor import display_batch_upload_interface
 from feedback import display_feedback_form, display_feedback_dashboard
 from benchmarking import display_benchmark_dashboard
 from usage_tracker import display_usage_dashboard, get_usage_stats
+from audit_tracker import display_audit_tracker
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -690,6 +691,27 @@ else:
             st.info(get_text("dashboard.no_audits_yet"))
         
         st.markdown("---")
+        
+        # Active Audits Section
+        st.subheader("📊 Active Audits")
+        
+        supabase = supabase_create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+        active_audits = supabase.table("audit_progress").select("*, audits(filename)").eq("firm_id", st.session_state.firm_id).eq("status", "in_progress").execute()
+        
+        if active_audits.data:
+            for audit in active_audits.data[:3]:
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    audit_filename = audit.get('audits', {}).get('filename', 'Audit') if audit.get('audits') else 'Audit'
+                    st.markdown(f"**{audit_filename}**")
+                    st.progress(audit.get('progress_percentage', 0) / 100)
+                with col2:
+                    st.caption(f"{audit.get('progress_percentage', 0)}% complete")
+                st.markdown("---")
+        else:
+            st.info("No active audits. Start a new audit to track progress.")
+        
+        st.markdown("---")
         st.markdown(f"### {get_text('dashboard.quick_actions')}")
         
         col1, col2 = st.columns(2)
@@ -799,7 +821,8 @@ else:
                                     "problem_areas": problem_areas
                                 }
                                 
-                                save_audit(
+                                # Save audit and get the ID
+                                audit_result = save_audit(
                                     firm_id=st.session_state.firm_id,
                                     filename=bank_file.name,
                                     match_rate=result['summary']['match_rate'],
@@ -950,6 +973,21 @@ else:
                                 st.warning(get_text("email_report.warning"))
                 else:
                     st.info(get_text("subscription.email_reports_required"))
+                
+                # Audit Tracker
+                st.markdown("---")
+                # Get the audit ID from the saved audit
+                supabase = supabase_create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+                audit_record = supabase.table("audits").select("id").eq("filename", bank_file.name).eq("firm_id", st.session_state.firm_id).order("created_at", desc=True).limit(1).execute()
+                audit_id = audit_record.data[0]["id"] if audit_record.data else None
+                
+                if audit_id:
+                    display_audit_tracker(
+                        audit_id=audit_id,
+                        firm_id=st.session_state.firm_id,
+                        audit_name=bank_file.name,
+                        estimated_hours=predicted_hours
+                    )
                 
                 recommendations = generate_recommendations(
                     audit_data=result,
