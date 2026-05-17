@@ -1,4 +1,32 @@
 import streamlit as st
+
+# PWA Meta Tags - MUST BE AT THE VERY TOP
+st.markdown("""
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f77b4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ARAI">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png>
+""", unsafe_allow_html=True)
+
+# Register Service Worker for PWA
+st.markdown("""
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').then(function(registration) {
+            console.log('ServiceWorker registration successful');
+        }, function(err) {
+            console.log('ServiceWorker registration failed: ', err);
+        });
+    });
+}
+</script>
+""", unsafe_allow_html=True)
+
 import pandas as pd
 import tempfile
 import os
