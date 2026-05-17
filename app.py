@@ -9,6 +9,7 @@ from report_generator import generate_audit_pdf
 from email_sender import send_report_email
 from team import get_invite, get_team_members, remove_team_member, create_invite
 from subscription import get_firm_subscription, get_subscription_tiers, update_subscription, check_feature_access
+from recommendations import generate_recommendations, display_recommendations
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -242,7 +243,6 @@ else:
                     fig.update_layout(showlegend=False, height=300)
                     st.plotly_chart(fig, use_container_width=True)
                     
-                    # Show forecast
                     if len(df) >= 3:
                         st.caption("📊 Trend: " + ("Improving 📈" if df['match_rate'].iloc[-1] > df['match_rate'].iloc[0] else "Declining 📉"))
                 else:
@@ -275,7 +275,6 @@ else:
                 fig.update_layout(showlegend=False, height=300)
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Risk summary
                 high_count = risk_levels.count('High')
                 if high_count > 0:
                     st.warning(f"⚠️ {high_count} high-risk audits detected")
@@ -372,7 +371,44 @@ else:
         
         st.markdown("---")
         
-        # Row 3: Recent Activity
+        # Smart Recommendations on Dashboard
+        st.subheader("💡 Smart Recommendations")
+        
+        if audits:
+            latest = audits[0]
+            
+            sample_recommendations = [
+                {
+                    "category": "📊 Audit Quality",
+                    "priority": "Medium",
+                    "recommendation": f"Your match rate is {latest.get('match_rate', 0):.1%}. Continue monitoring for consistency.",
+                    "expected_impact": "Maintain quality standards",
+                    "effort": "Low"
+                },
+                {
+                    "category": "🚨 Risk Management",
+                    "priority": "High" if latest.get('fraud_risk', 0) > 50 else "Low",
+                    "recommendation": f"Fraud risk is {latest.get('fraud_risk', 0):.0f}%. {'Review controls immediately' if latest.get('fraud_risk', 0) > 50 else 'Current controls appear adequate'}.",
+                    "expected_impact": "Reduce risk exposure",
+                    "effort": "Medium"
+                },
+                {
+                    "category": "📈 Performance",
+                    "priority": "Low",
+                    "recommendation": "Run more audits to get personalized recommendations based on your specific results.",
+                    "expected_impact": "Better insights",
+                    "effort": "Low"
+                }
+            ]
+            
+            display_recommendations(sample_recommendations)
+            st.caption("Run a new audit to get detailed recommendations based on your specific results")
+        else:
+            st.info("Run an audit to get personalized recommendations")
+        
+        st.markdown("---")
+        
+        # Recent Activity
         st.subheader("📋 Recent Activity")
         
         if audits:
@@ -594,7 +630,6 @@ else:
                         st.success("✅ All ledger entries matched!")
                 
                 # Email Section (only for Professional and Enterprise)
-                current_sub = get_firm_subscription(st.session_state.firm_id)
                 if check_feature_access(st.session_state.firm_id, "email_reports"):
                     st.markdown("---")
                     st.subheader("📧 Email Report to Client")
@@ -648,6 +683,28 @@ else:
                                 st.warning("Please enter both client email and name")
                 else:
                     st.info("📧 Email reports are available on Professional and Enterprise plans. Upgrade to send reports.")
+                
+                # AI Recommendations
+                st.markdown("---")
+                st.subheader("💡 AI Recommendations")
+                
+                recommendations = generate_recommendations(
+                    audit_data=result,
+                    anomalies=anomalies,
+                    fraud_risk=fraud_risk,
+                    problem_areas=problem_areas,
+                    match_rate=result['summary']['match_rate']
+                )
+                
+                display_recommendations(recommendations)
+                
+                if st.button("📋 Export Recommendations as Checklist"):
+                    checklist = []
+                    for rec in recommendations:
+                        checklist.append(f"□ [{rec['priority']}] {rec['category']}: {rec['recommendation']}")
+                    checklist_text = "\n\n".join(checklist)
+                    st.code(checklist_text, language="text")
+                    st.caption("Copy this checklist for your audit team")
                 
                 if st.button("🔄 Run Another Audit", type="primary"):
                     st.session_state.audit_results = None
