@@ -1,32 +1,4 @@
 import streamlit as st
-
-# PWA Meta Tags - MUST BE AT THE VERY TOP
-st.markdown("""
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1f77b4">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ARAI">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png>
-""", unsafe_allow_html=True)
-
-# Register Service Worker for PWA
-st.markdown("""
-<script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').then(function(registration) {
-            console.log('ServiceWorker registration successful');
-        }, function(err) {
-            console.log('ServiceWorker registration failed: ', err);
-        });
-    });
-}
-</script>
-""", unsafe_allow_html=True)
-
 import pandas as pd
 import tempfile
 import os
@@ -55,8 +27,36 @@ from benchmarking import display_benchmark_dashboard
 from usage_tracker import display_usage_dashboard, get_usage_stats
 from audit_tracker import display_audit_tracker
 from quality_trends import display_quality_trends_dashboard
+from two_factor_auth import display_2fa_setup, get_device_id
 import plotly.express as px
 import plotly.graph_objects as go
+
+# PWA Meta Tags
+st.markdown("""
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f77b4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ARAI">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+""", unsafe_allow_html=True)
+
+# Register Service Worker for PWA
+st.markdown("""
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').then(function(registration) {
+            console.log('ServiceWorker registration successful');
+        }, function(err) {
+            console.log('ServiceWorker registration failed: ', err);
+        });
+    });
+}
+</script>
+""", unsafe_allow_html=True)
 
 # Page config
 st.set_page_config(
@@ -76,6 +76,16 @@ if "theme" not in st.session_state:
 # Initialize settings tab index
 if "settings_tab_index" not in st.session_state:
     st.session_state.settings_tab_index = 0
+
+# Initialize 2FA state
+if "awaiting_2fa" not in st.session_state:
+    st.session_state.awaiting_2fa = False
+if "temp_email" not in st.session_state:
+    st.session_state.temp_email = None
+if "temp_password" not in st.session_state:
+    st.session_state.temp_password = None
+if "remember_device" not in st.session_state:
+    st.session_state.remember_device = False
 
 # Handle checkout success
 handle_checkout_success()
@@ -342,78 +352,133 @@ st.markdown("---")
 
 # Authentication
 if not st.session_state.authenticated:
-    tab1, tab2 = st.tabs([get_text("login.title"), get_text("login.register")])
-    
-    with tab1:
-        with st.form("login_form"):
-            st.markdown(f"### 🔐 {get_text('login.title')}")
-            email = st.text_input(get_text("login.email"))
-            password = st.text_input(get_text("login.password"), type="password")
-            submitted = st.form_submit_button(get_text("login.button"), width="stretch")
-            
-            if submitted:
-                success, message, firm_id, role = login_user(email, password)
+    if not st.session_state.awaiting_2fa:
+        tab1, tab2 = st.tabs([get_text("login.title"), get_text("login.register")])
+        
+        with tab1:
+            with st.form("login_form"):
+                st.markdown(f"### 🔐 {get_text('login.title')}")
+                email = st.text_input(get_text("login.email"))
+                password = st.text_input(get_text("login.password"), type="password")
+                remember_device = st.checkbox("Remember this device for 30 days")
+                submitted = st.form_submit_button(get_text("login.button"), width="stretch")
+                
+                if submitted:
+                    device_id = get_device_id() if remember_device else None
+                    device_name = "Trusted Device" if remember_device else None
+                    
+                    success, message, firm_id, role = login_user(
+                        email, password,
+                        two_factor_code=None,
+                        device_id=device_id,
+                        device_name=device_name
+                    )
+                    
+                    if success:
+                        st.session_state.authenticated = True
+                        st.session_state.firm_id = firm_id
+                        st.session_state.user_email = email
+                        st.session_state.user_role = role
+                        log_activity(firm_id, email, "login", {"role": role})
+                        st.rerun()
+                    elif message == "2FA_REQUIRED":
+                        st.session_state.awaiting_2fa = True
+                        st.session_state.temp_email = email
+                        st.session_state.temp_password = password
+                        st.session_state.remember_device = remember_device
+                        st.rerun()
+                    else:
+                        st.error(message)
+        
+        with tab2:
+            with st.form("register_form"):
+                st.markdown(f"### 📝 {get_text('login.register_title')}")
+                
+                if "pending_invite" in st.session_state:
+                    invite = st.session_state.pending_invite
+                    st.info(get_text("login.joining_firm", firm_name=invite['firms']['name'], role=invite['role']))
+                    
+                    firm_name = st.text_input(get_text("login.firm_name"), value=invite['firms']['name'], disabled=True)
+                    email = st.text_input(get_text("login.email"), value=invite['email'], disabled=True)
+                    password = st.text_input(get_text("login.password"), type="password")
+                    confirm_password = st.text_input(get_text("login.confirm_password"), type="password")
+                    
+                    submitted = st.form_submit_button(get_text("login.join_firm"), width="stretch")
+                    
+                    if submitted:
+                        if password != confirm_password:
+                            st.error(get_text("login.password_mismatch"))
+                        elif len(password) < 6:
+                            st.error(get_text("login.password_length"))
+                        else:
+                            success, result = register_user_for_existing_firm(
+                                email, password, 
+                                invite['firms']['id'], 
+                                invite['role'],
+                                token
+                            )
+                            if success:
+                                st.success(get_text("login.registration_success"))
+                                del st.session_state.pending_invite
+                                st.rerun()
+                            else:
+                                st.error(result)
+                else:
+                    firm_name = st.text_input(get_text("login.firm_name"))
+                    email = st.text_input(get_text("login.email"))
+                    password = st.text_input(get_text("login.password"), type="password")
+                    confirm_password = st.text_input(get_text("login.confirm_password"), type="password")
+                    submitted = st.form_submit_button(get_text("login.register_button"), width="stretch")
+                    
+                    if submitted:
+                        if password != confirm_password:
+                            st.error(get_text("login.password_mismatch"))
+                        elif len(password) < 6:
+                            st.error(get_text("login.password_length"))
+                        else:
+                            success, result = register_firm(firm_name, email, password)
+                            if success:
+                                st.success(get_text("login.registration_success"))
+                            else:
+                                st.error(result)
+    else:
+        # 2FA Verification Form
+        st.markdown("### 🔐 Two-Factor Authentication Required")
+        st.markdown("Please enter the verification code from your authenticator app.")
+        
+        code = st.text_input("Verification Code", type="password")
+        is_backup = st.checkbox("This is a backup code")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Verify", key="verify_2fa"):
+                device_id = get_device_id() if st.session_state.remember_device else None
+                device_name = "Trusted Device" if st.session_state.remember_device else None
+                
+                success, message, firm_id, role = login_user(
+                    st.session_state.temp_email,
+                    st.session_state.temp_password,
+                    two_factor_code=code,
+                    is_backup_code=is_backup,
+                    device_id=device_id,
+                    device_name=device_name
+                )
+                
                 if success:
                     st.session_state.authenticated = True
                     st.session_state.firm_id = firm_id
-                    st.session_state.user_email = email
+                    st.session_state.user_email = st.session_state.temp_email
                     st.session_state.user_role = role
-                    log_activity(firm_id, email, "login", {"role": role})
+                    st.session_state.awaiting_2fa = False
+                    log_activity(firm_id, st.session_state.temp_email, "login_2fa", {"role": role})
                     st.rerun()
                 else:
                     st.error(message)
-    
-    with tab2:
-        with st.form("register_form"):
-            st.markdown(f"### 📝 {get_text('login.register_title')}")
-            
-            if "pending_invite" in st.session_state:
-                invite = st.session_state.pending_invite
-                st.info(get_text("login.joining_firm", firm_name=invite['firms']['name'], role=invite['role']))
-                
-                firm_name = st.text_input(get_text("login.firm_name"), value=invite['firms']['name'], disabled=True)
-                email = st.text_input(get_text("login.email"), value=invite['email'], disabled=True)
-                password = st.text_input(get_text("login.password"), type="password")
-                confirm_password = st.text_input(get_text("login.confirm_password"), type="password")
-                
-                submitted = st.form_submit_button(get_text("login.join_firm"), width="stretch")
-                
-                if submitted:
-                    if password != confirm_password:
-                        st.error(get_text("login.password_mismatch"))
-                    elif len(password) < 6:
-                        st.error(get_text("login.password_length"))
-                    else:
-                        success, result = register_user_for_existing_firm(
-                            email, password, 
-                            invite['firms']['id'], 
-                            invite['role'],
-                            token
-                        )
-                        if success:
-                            st.success(get_text("login.registration_success"))
-                            del st.session_state.pending_invite
-                            st.rerun()
-                        else:
-                            st.error(result)
-            else:
-                firm_name = st.text_input(get_text("login.firm_name"))
-                email = st.text_input(get_text("login.email"))
-                password = st.text_input(get_text("login.password"), type="password")
-                confirm_password = st.text_input(get_text("login.confirm_password"), type="password")
-                submitted = st.form_submit_button(get_text("login.register_button"), width="stretch")
-                
-                if submitted:
-                    if password != confirm_password:
-                        st.error(get_text("login.password_mismatch"))
-                    elif len(password) < 6:
-                        st.error(get_text("login.password_length"))
-                    else:
-                        success, result = register_firm(firm_name, email, password)
-                        if success:
-                            st.success(get_text("login.registration_success"))
-                        else:
-                            st.error(result)
+        
+        with col2:
+            if st.button("Cancel", key="cancel_2fa"):
+                st.session_state.awaiting_2fa = False
+                st.rerun()
 
 else:
     # Sidebar navigation
@@ -480,7 +545,7 @@ else:
         
         if st.button(get_text("login.logout")):
             log_activity(st.session_state.firm_id, st.session_state.user_email, "logout", {})
-            for key in ["authenticated", "firm_id", "user_email", "user_role", "audit_results"]:
+            for key in ["authenticated", "firm_id", "user_email", "user_role", "audit_results", "awaiting_2fa", "temp_email", "temp_password", "remember_device"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
@@ -1005,7 +1070,6 @@ else:
                 
                 # Audit Tracker
                 st.markdown("---")
-                # Get the filename from session state results
                 filename = st.session_state.audit_results.get('bank_filename', 'Audit')
                 supabase = supabase_create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
                 audit_record = supabase.table("audits").select("id").eq("filename", filename).eq("firm_id", st.session_state.firm_id).order("created_at", desc=True).limit(1).execute()
@@ -1254,6 +1318,11 @@ else:
         with tabs[1]:
             st.markdown(f"#### 🏢 {get_text('settings.firm_settings')}")
             display_digest_settings(st.session_state.firm_id)
+            
+            # 2FA Settings Section
+            st.markdown("---")
+            display_2fa_setup(st.session_state.firm_id, st.session_state.user_email)
+            
             st.markdown("---")
             st.info(get_text("settings.coming_soon"))
             st.caption(f"{get_text('settings.firm_id')}: {st.session_state.firm_id}")
@@ -1377,7 +1446,6 @@ else:
         
         # Set the active tab based on session state
         if st.session_state.settings_tab_index != 0:
-            # Use JavaScript to switch tabs
             st.components.v1.html(f"""
                 <script>
                     const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
@@ -1386,7 +1454,7 @@ else:
                     }}
                 </script>
             """, height=0)
-            st.session_state.settings_tab_index = 0  # Reset
+            st.session_state.settings_tab_index = 0
     
     st.markdown("---")
     st.caption(get_text("footer.copyright"))
