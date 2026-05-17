@@ -9,7 +9,7 @@ from auth import register_firm, login_user, get_firm_audits, save_audit, get_fir
 from report_generator import generate_audit_pdf
 from email_sender import send_report_email
 from team import get_invite, get_team_members, remove_team_member, create_invite
-from subscription import get_firm_subscription, get_subscription_tiers, update_subscription, check_feature_access
+from subscription import get_firm_subscription, get_subscription_tiers, update_subscription, check_feature_access, check_feature_access_with_prompt
 from recommendations import generate_recommendations, display_recommendations
 from branding import get_firm_branding, update_branding, save_firm_logo, remove_logo
 from analytics import display_analytics_dashboard, calculate_time_saved, calculate_cost_savings
@@ -24,6 +24,7 @@ from bank_integration import display_bank_integration_dashboard
 from batch_processor import display_batch_upload_interface
 from feedback import display_feedback_form, display_feedback_dashboard
 from benchmarking import display_benchmark_dashboard
+from usage_tracker import display_usage_dashboard, get_usage_stats
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -393,6 +394,11 @@ else:
         
         sub = get_firm_subscription(st.session_state.firm_id)
         st.markdown(f"**{get_text('subscription.current_plan')}:** {sub.get('subscription_tier', 'free').title()}")
+        
+        st.markdown("---")
+        
+        # Usage Dashboard
+        usage_stats = display_usage_dashboard(st.session_state.firm_id)
         
         st.markdown("---")
         
