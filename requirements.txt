@@ -2,7 +2,10 @@ streamlit
 pandas
 openpyxl
 pdfplumber
+rapidfuzz
+scikit-learn
 reportlab
 supabase
 yagmail
 plotly
+requests
