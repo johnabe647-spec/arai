@@ -23,6 +23,7 @@ from lemonsqueezy_integration import display_payment_options, handle_checkout_su
 from bank_integration import display_bank_integration_dashboard
 from batch_processor import display_batch_upload_interface
 from feedback import display_feedback_form, display_feedback_dashboard
+from benchmarking import display_benchmark_dashboard
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -987,6 +988,8 @@ else:
         st.markdown(f"### 📊 {get_text('navigation.analytics')}")
         
         audits = get_firm_audits(st.session_state.firm_id, limit=500)
+        stats = get_firm_stats(st.session_state.firm_id)
+        
         display_analytics_dashboard(audits, st.session_state.user_email.split('@')[0])
         
         st.markdown("---")
@@ -1047,6 +1050,10 @@ else:
         # Batch Processing
         st.markdown("---")
         display_batch_upload_interface(st.session_state.firm_id, st.session_state.user_email)
+        
+        # Benchmarking
+        st.markdown("---")
+        display_benchmark_dashboard(st.session_state.firm_id, stats, audits)
     
     # Activity Log Page
     elif st.session_state.page == "Activity Log":
