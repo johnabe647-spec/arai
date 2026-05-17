@@ -976,16 +976,17 @@ else:
                 
                 # Audit Tracker
                 st.markdown("---")
-                # Get the audit ID from the saved audit
+                # Get the filename from session state results
+                filename = st.session_state.audit_results.get('bank_filename', 'Audit')
                 supabase = supabase_create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-                audit_record = supabase.table("audits").select("id").eq("filename", bank_file.name).eq("firm_id", st.session_state.firm_id).order("created_at", desc=True).limit(1).execute()
+                audit_record = supabase.table("audits").select("id").eq("filename", filename).eq("firm_id", st.session_state.firm_id).order("created_at", desc=True).limit(1).execute()
                 audit_id = audit_record.data[0]["id"] if audit_record.data else None
                 
                 if audit_id:
                     display_audit_tracker(
                         audit_id=audit_id,
                         firm_id=st.session_state.firm_id,
-                        audit_name=bank_file.name,
+                        audit_name=filename,
                         estimated_hours=predicted_hours
                     )
                 
