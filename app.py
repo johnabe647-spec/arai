@@ -27,6 +27,7 @@ from benchmarking import display_benchmark_dashboard
 from usage_tracker import display_usage_dashboard, get_usage_stats
 from audit_tracker import display_audit_tracker
 from quality_trends import display_quality_trends_dashboard
+from audit_templates import display_template_library
 from two_factor_auth import display_2fa_setup, get_device_id
 import plotly.express as px
 import plotly.graph_objects as go
@@ -1196,6 +1197,10 @@ else:
         # Quality Trends
         st.markdown("---")
         display_quality_trends_dashboard(audits, st.session_state.user_email.split('@')[0])
+        
+        # Template Library
+        st.markdown("---")
+        display_template_library(st.session_state.firm_id)
     
     # Activity Log Page
     elif st.session_state.page == "Activity Log":
