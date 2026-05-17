@@ -76,126 +76,81 @@ def delete_notification(notification_id):
         print(f"Error deleting notification: {e}")
         return False
 
-def get_notification_preferences(firm_id, user_id=None):
-    """Get notification preferences for a firm/user"""
-    supabase = get_supabase()
-    
-    try:
-        query = supabase.table("notification_preferences").select("*").eq("firm_id", firm_id)
-        if user_id:
-            query = query.eq("user_id", user_id)
-        result = query.execute()
-        
-        if result.data:
-            return result.data[0]
-        else:
-            # Create default preferences
-            default = {
-                "firm_id": firm_id,
-                "user_id": user_id,
-                "email_notifications": True,
-                "browser_notifications": True,
-                "audit_completed": True,
-                "anomaly_detected": True,
-                "report_ready": True,
-                "schedule_reminder": True
-            }
-            if user_id:
-                default["user_id"] = user_id
-            supabase.table("notification_preferences").insert(default).execute()
-            return default
-    except Exception as e:
-        print(f"Error getting preferences: {e}")
-        return {
-            "email_notifications": True,
-            "browser_notifications": True,
-            "audit_completed": True,
-            "anomaly_detected": True,
-            "report_ready": True,
-            "schedule_reminder": True
-        }
-
-def update_notification_preferences(firm_id, user_id, preferences):
-    """Update notification preferences"""
-    supabase = get_supabase()
-    
-    try:
-        # Check if exists
-        existing = supabase.table("notification_preferences").select("*").eq("firm_id", firm_id).eq("user_id", user_id).execute()
-        
-        if existing.data:
-            supabase.table("notification_preferences").update(preferences).eq("firm_id", firm_id).eq("user_id", user_id).execute()
-        else:
-            preferences["firm_id"] = firm_id
-            preferences["user_id"] = user_id
-            supabase.table("notification_preferences").insert(preferences).execute()
-        
-        return True
-    except Exception as e:
-        print(f"Error updating preferences: {e}")
-        return False
-
 def display_notification_center(firm_id, user_email):
     """Display notification center in the sidebar"""
-    
-    unread_count = len(get_notifications(firm_id, unread_only=True))
     
     # Get user_id from email
     supabase = get_supabase()
     user_result = supabase.table("users").select("id").eq("email", user_email).execute()
     user_id = user_result.data[0]["id"] if user_result.data else None
     
-    # Notification bell in sidebar
-    with st.sidebar:
-        st.markdown("---")
-        
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            st.markdown("### 🔔 Notifications")
-        with col2:
-            if unread_count > 0:
-                st.markdown(f"**{unread_count} new**")
-        
-        notifications = get_notifications(firm_id, user_id, limit=10)
-        
-        if notifications:
-            for notif in notifications:
-                with st.container():
-                    # Color based on type
-                    if notif['type'] == 'success':
-                        icon = "✅"
-                    elif notif['type'] == 'warning':
-                        icon = "⚠️"
-                    elif notif['type'] == 'error':
-                        icon = "🔴"
-                    else:
-                        icon = "ℹ️"
-                    
-                    # Style based on read status
-                    if not notif['is_read']:
-                        st.markdown(f"**{icon} {notif['title']}**")
-                    else:
-                        st.markdown(f"{icon} {notif['title']}")
-                    
-                    st.caption(notif['message'][:100])
-                    st.caption(f"🕐 {notif['created_at'][:16].replace('T', ' ')}")
-                    
-                    col1, col2, col3 = st.columns([1, 1, 1])
-                    with col1:
-                        if not notif['is_read']:
-                            if st.button(f"Read", key=f"mark_{notif['id']}"):
-                                mark_notification_read(notif['id'])
-                                st.rerun()
-                    with col2:
-                        if st.button(f"🗑️", key=f"del_{notif['id']}"):
-                            delete_notification(notif['id'])
+    # Get all notifications
+    notifications = get_notifications(firm_id, user_id, limit=20)
+    unread_notifications = [n for n in notifications if not n.get('is_read', False)]
+    unread_count = len(unread_notifications)
+    
+    # Display header with count
+    if unread_count > 0:
+        st.markdown(f"### 🔔 Notifications ({unread_count} new)")
+    else:
+        st.markdown("### 🔔 Notifications")
+    
+    # Mark all as read button
+    if unread_count > 0:
+        if st.button("✓ Mark All as Read", key="mark_all_notifications"):
+            mark_all_notifications_read(firm_id, user_id)
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # Display notifications
+    if notifications:
+        for notif in notifications:
+            with st.container():
+                # Color based on type
+                if notif['type'] == 'success':
+                    icon = "✅"
+                    bg_color = "#d4edda"
+                elif notif['type'] == 'warning':
+                    icon = "⚠️"
+                    bg_color = "#fff3cd"
+                elif notif['type'] == 'error':
+                    icon = "🔴"
+                    bg_color = "#f8d7da"
+                else:
+                    icon = "ℹ️"
+                    bg_color = "#e2e3e5"
+                
+                # Style based on read status
+                is_read = notif.get('is_read', False)
+                font_weight = "normal" if is_read else "bold"
+                
+                st.markdown(f"""
+                <div style="background-color: {bg_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <div style="font-weight: {font_weight};">
+                        {icon} {notif['title']}
+                    </div>
+                    <div style="font-size: 0.85rem; margin: 5px 0;">
+                        {notif['message']}
+                    </div>
+                    <div style="font-size: 0.7rem; color: #666;">
+                        🕐 {notif['created_at'][:16].replace('T', ' ')}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Action buttons
+                col1, col2 = st.columns(2)
+                with col1:
+                    if not is_read:
+                        if st.button(f"✓ Read", key=f"mark_{notif['id']}"):
+                            mark_notification_read(notif['id'])
                             st.rerun()
-                    
-                    st.markdown("---")
-            
-            if unread_count > 0:
-                if st.button("Mark All as Read"):
-                    mark_all_notifications_read(firm_id, user_id)
-                    st.rerun()
-        else:
-            st.info("No notifications")
+                with col2:
+                    if st.button(f"🗑️ Delete", key=f"del_{notif['id']}"):
+                        delete_notification(notif['id'])
+                        st.rerun()
+                
+                st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+    else:
+        st.info("No notifications")
