@@ -983,80 +983,68 @@ else:
     elif st.session_state.page == "Analytics":
         st.markdown(f"### 📊 {get_text('navigation.analytics')}")
         
-        if check_feature_access(st.session_state.firm_id, "advanced_analytics"):
-            audits = get_firm_audits(st.session_state.firm_id, limit=500)
-            display_analytics_dashboard(audits, st.session_state.user_email.split('@')[0])
-            
-            st.markdown("---")
-            st.subheader(f"📅 {get_text('scheduled_reports.title')}")
-            
-            schedules = get_schedules(st.session_state.firm_id)
-            
-            if schedules:
-                st.markdown(f"#### {get_text('scheduled_reports.your_schedules')}")
-                display_schedules(schedules)
-            
-            with st.expander(f"➕ {get_text('scheduled_reports.create_new')}"):
-                with st.form("schedule_form"):
-                    schedule_name = st.text_input(get_text("scheduled_reports.schedule_name"), placeholder="Monthly Client Report")
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        frequency = st.selectbox(get_text("scheduled_reports.frequency"), ["daily", "weekly", "monthly"])
-                    with col2:
-                        schedule_time = st.time_input(get_text("scheduled_reports.time"), value=time(9, 0))
-                    
-                    schedule_day = None
-                    if frequency == "weekly":
-                        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-                        day_name = st.selectbox(get_text("scheduled_reports.day_of_week"), days)
-                        schedule_day = days.index(day_name)
-                    elif frequency == "monthly":
-                        schedule_day = st.number_input(get_text("scheduled_reports.day_of_month"), min_value=1, max_value=28, value=1)
-                    
-                    recipient_emails = st.text_area(get_text("scheduled_reports.recipient_emails"), placeholder="client@company.com\nmanager@firm.com", 
-                                                    help=get_text("scheduled_reports.emails_help"))
-                    
-                    client_name = st.text_input(get_text("scheduled_reports.client_name_optional"), placeholder="Client Company Name")
-                    
-                    submitted = st.form_submit_button(get_text("scheduled_reports.create_button"))
-                    
-                    if submitted and schedule_name and recipient_emails:
-                        emails_list = [e.strip() for e in recipient_emails.split('\n') if e.strip()]
-                        success, result = create_schedule(
-                            st.session_state.firm_id,
-                            schedule_name,
-                            frequency,
-                            schedule_time,
-                            emails_list,
-                            client_name if client_name else None,
-                            schedule_day
-                        )
-                        if success:
-                            st.success(get_text("scheduled_reports.schedule_created", name=schedule_name))
-                            log_activity(st.session_state.firm_id, st.session_state.user_email, "create_schedule", {
-                                "schedule_name": schedule_name,
-                                "frequency": frequency
-                            })
-                            st.rerun()
-                        else:
-                            st.error(f"Error: {result}")
-            
-            # Batch Processing
-            st.markdown("---")
-            display_batch_upload_interface(st.session_state.firm_id, st.session_state.user_email)
-            
-        else:
-            st.info(get_text("subscription.advanced_analytics_required"))
-            st.markdown("**Features include:**")
-            st.markdown(f"- {get_text('subscription.time_saved_tracking')}")
-            st.markdown(f"- {get_text('subscription.benchmark_comparisons')}")
-            st.markdown(f"- {get_text('subscription.monthly_trends')}")
-            st.markdown(f"- {get_text('subscription.scheduled_reports')}")
-            
-            if st.button(get_text("subscription.upgrade_to_unlock"), key="upgrade_analytics"):
-                st.session_state.page = "Settings"
-                st.rerun()
+        # Show analytics dashboard directly (skip feature check for testing)
+        audits = get_firm_audits(st.session_state.firm_id, limit=500)
+        display_analytics_dashboard(audits, st.session_state.user_email.split('@')[0])
+        
+        st.markdown("---")
+        st.subheader(f"📅 {get_text('scheduled_reports.title')}")
+        
+        schedules = get_schedules(st.session_state.firm_id)
+        
+        if schedules:
+            st.markdown(f"#### {get_text('scheduled_reports.your_schedules')}")
+            display_schedules(schedules)
+        
+        with st.expander(f"➕ {get_text('scheduled_reports.create_new')}"):
+            with st.form("schedule_form"):
+                schedule_name = st.text_input(get_text("scheduled_reports.schedule_name"), placeholder="Monthly Client Report")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    frequency = st.selectbox(get_text("scheduled_reports.frequency"), ["daily", "weekly", "monthly"])
+                with col2:
+                    schedule_time = st.time_input(get_text("scheduled_reports.time"), value=time(9, 0))
+                
+                schedule_day = None
+                if frequency == "weekly":
+                    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                    day_name = st.selectbox(get_text("scheduled_reports.day_of_week"), days)
+                    schedule_day = days.index(day_name)
+                elif frequency == "monthly":
+                    schedule_day = st.number_input(get_text("scheduled_reports.day_of_month"), min_value=1, max_value=28, value=1)
+                
+                recipient_emails = st.text_area(get_text("scheduled_reports.recipient_emails"), placeholder="client@company.com\nmanager@firm.com", 
+                                                help=get_text("scheduled_reports.emails_help"))
+                
+                client_name = st.text_input(get_text("scheduled_reports.client_name_optional"), placeholder="Client Company Name")
+                
+                submitted = st.form_submit_button(get_text("scheduled_reports.create_button"))
+                
+                if submitted and schedule_name and recipient_emails:
+                    emails_list = [e.strip() for e in recipient_emails.split('\n') if e.strip()]
+                    success, result = create_schedule(
+                        st.session_state.firm_id,
+                        schedule_name,
+                        frequency,
+                        schedule_time,
+                        emails_list,
+                        client_name if client_name else None,
+                        schedule_day
+                    )
+                    if success:
+                        st.success(get_text("scheduled_reports.schedule_created", name=schedule_name))
+                        log_activity(st.session_state.firm_id, st.session_state.user_email, "create_schedule", {
+                            "schedule_name": schedule_name,
+                            "frequency": frequency
+                        })
+                        st.rerun()
+                    else:
+                        st.error(f"Error: {result}")
+        
+        # Batch Processing
+        st.markdown("---")
+        display_batch_upload_interface(st.session_state.firm_id, st.session_state.user_email)
     
     # Activity Log Page
     elif st.session_state.page == "Activity Log":
