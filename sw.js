@@ -1,15 +1,11 @@
-// Service Worker for ARAI PWA
 const CACHE_NAME = 'arai-v1';
 
-// Files to cache for offline access
 const urlsToCache = [
     '/',
-    '/app.py',
     '/manifest.json',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
 ];
 
-// Install event - cache files
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
@@ -20,12 +16,10 @@ self.addEventListener('install', event => {
     );
 });
 
-// Fetch event - serve from cache if offline
 self.addEventListener('fetch', event => {
     event.respondWith(
         caches.match(event.request)
             .then(response => {
-                // Cache hit - return response
                 if (response) {
                     return response;
                 }
@@ -34,7 +28,6 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', event => {
     const cacheWhitelist = [CACHE_NAME];
     event.waitUntil(
