@@ -17,7 +17,7 @@ from activity_logger import log_activity, display_activity_dashboard
 from api_manager import display_api_dashboard
 from email_digest import display_digest_settings
 from notifications import create_audit_notifications, display_notification_center
-from translator import get_text, language_selector
+from translator import get_text, language_selector, get_theme, theme_selector
 from lemonsqueezy_integration import display_payment_options, handle_checkout_success
 from bank_integration import display_bank_integration_dashboard
 import plotly.express as px
@@ -34,6 +34,10 @@ st.set_page_config(
 if "language" not in st.session_state:
     st.session_state.language = "en"
 
+# Initialize theme in session state
+if "theme" not in st.session_state:
+    st.session_state.theme = "light"
+
 # Initialize settings tab index
 if "settings_tab_index" not in st.session_state:
     st.session_state.settings_tab_index = 0
@@ -41,53 +45,237 @@ if "settings_tab_index" not in st.session_state:
 # Handle checkout success
 handle_checkout_success()
 
-# Custom CSS
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1f77b4;
-        margin-bottom: 0;
-    }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        margin-top: -10px;
-        margin-bottom: 30px;
-    }
-    .risk-high {
-        background-color: #ff6b6b;
-        padding: 10px;
-        border-radius: 5px;
-        color: white;
-        text-align: center;
-        font-weight: bold;
-    }
-    .risk-medium {
-        background-color: #ffa500;
-        padding: 10px;
-        border-radius: 5px;
-        color: white;
-        text-align: center;
-        font-weight: bold;
-    }
-    .risk-low {
-        background-color: #4ecdc4;
-        padding: 10px;
-        border-radius: 5px;
-        color: white;
-        text-align: center;
-        font-weight: bold;
-    }
-    .feature-yes {
-        color: green;
-    }
-    .feature-no {
-        color: #999;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Dynamic CSS based on theme
+current_theme = get_theme()
+
+if current_theme == "dark":
+    css = """
+    <style>
+        /* Dark theme variables */
+        .stApp {
+            background-color: #1e1e2e;
+        }
+        .main-header {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #89b4fa;
+            margin-bottom: 0;
+        }
+        .sub-header {
+            font-size: 1.2rem;
+            color: #a6adc8;
+            margin-top: -10px;
+            margin-bottom: 30px;
+        }
+        .stMarkdown, .stText, .stNumber, .stSelectbox label, .stMultiSelect label {
+            color: #cdd6f4 !important;
+        }
+        .stButton > button {
+            background-color: #89b4fa;
+            color: #1e1e2e;
+            border-radius: 5px;
+        }
+        .stButton > button:hover {
+            background-color: #b4befe;
+        }
+        .stDataFrame {
+            background-color: #181825;
+        }
+        .stAlert {
+            background-color: #313244;
+            color: #cdd6f4;
+        }
+        .risk-high {
+            background-color: #f38ba8;
+            padding: 10px;
+            border-radius: 5px;
+            color: #1e1e2e;
+            text-align: center;
+            font-weight: bold;
+        }
+        .risk-medium {
+            background-color: #fab387;
+            padding: 10px;
+            border-radius: 5px;
+            color: #1e1e2e;
+            text-align: center;
+            font-weight: bold;
+        }
+        .risk-low {
+            background-color: #a6e3a1;
+            padding: 10px;
+            border-radius: 5px;
+            color: #1e1e2e;
+            text-align: center;
+            font-weight: bold;
+        }
+        div[data-testid="stSidebar"] {
+            background-color: #11111b;
+        }
+        div[data-testid="stSidebar"] * {
+            color: #cdd6f4;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            background-color: #313244;
+            border-radius: 8px;
+            padding: 8px 16px;
+            color: #cdd6f4;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #89b4fa;
+            color: #1e1e2e;
+        }
+        .stMetric {
+            background-color: #181825;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .stMetric label {
+            color: #a6adc8 !important;
+        }
+        .stMetric div {
+            color: #89b4fa !important;
+        }
+        .stProgress > div > div > div > div {
+            background-color: #89b4fa;
+        }
+        .stExpander {
+            background-color: #181825;
+            border-radius: 10px;
+        }
+        .stDataFrame {
+            background-color: #181825;
+        }
+        .stDataFrame th {
+            background-color: #313244;
+            color: #cdd6f4;
+        }
+        .stDataFrame td {
+            color: #cdd6f4;
+        }
+        footer {
+            visibility: hidden;
+        }
+        .st-emotion-cache-1v0mbdj {
+            background-color: #1e1e2e;
+        }
+        .st-emotion-cache-16txtl3 {
+            background-color: #11111b;
+        }
+        .st-emotion-cache-1y4p8pa {
+            background-color: #181825;
+        }
+        .st-emotion-cache-1dp5vir {
+            background-color: #1e1e2e;
+        }
+        .stTextInput > div > div > input {
+            background-color: #313244;
+            color: #cdd6f4;
+        }
+        .stTextArea > div > div > textarea {
+            background-color: #313244;
+            color: #cdd6f4;
+        }
+        .stSelectbox > div > div {
+            background-color: #313244;
+            color: #cdd6f4;
+        }
+        .stFileUploader > div > div {
+            background-color: #313244;
+        }
+        .stAlert {
+            background-color: #313244;
+            color: #cdd6f4;
+        }
+        .stSuccess {
+            background-color: #1e3a2f;
+            color: #a6e3a1;
+        }
+        .stWarning {
+            background-color: #3a2e1e;
+            color: #fab387;
+        }
+        .stError {
+            background-color: #3a1e2e;
+            color: #f38ba8;
+        }
+        .stInfo {
+            background-color: #1e2e3a;
+            color: #89b4fa;
+        }
+        hr {
+            border-color: #45475a;
+        }
+    </style>
+    """
+else:
+    css = """
+    <style>
+        .main-header {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1f77b4;
+            margin-bottom: 0;
+        }
+        .sub-header {
+            font-size: 1.2rem;
+            color: #666;
+            margin-top: -10px;
+            margin-bottom: 30px;
+        }
+        .risk-high {
+            background-color: #ff6b6b;
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+        .risk-medium {
+            background-color: #ffa500;
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+        .risk-low {
+            background-color: #4ecdc4;
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+        .feature-yes {
+            color: green;
+        }
+        .feature-no {
+            color: #999;
+        }
+        .stSuccess {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .stWarning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .stError {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .stInfo {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+    """
+
+st.markdown(css, unsafe_allow_html=True)
 
 # Initialize session state
 if "authenticated" not in st.session_state:
@@ -243,6 +431,9 @@ else:
         
         # Language Selector
         language_selector()
+        
+        # Theme Selector
+        theme_selector()
         
         st.markdown("---")
         

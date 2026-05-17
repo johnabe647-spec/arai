@@ -26,7 +26,6 @@ def load_translations(lang_code):
             _translations_cache[lang_code] = translations
             return translations
     except FileNotFoundError:
-        # Fallback to English
         with open(os.path.join(os.path.dirname(__file__), "locales", "en.json"), 'r', encoding='utf-8') as f:
             translations = json.load(f)
             _translations_cache[lang_code] = translations
@@ -39,7 +38,6 @@ def get_text(key, lang_code=None, **kwargs):
     
     translations = load_translations(lang_code)
     
-    # Navigate nested keys (e.g., "login.title")
     parts = key.split('.')
     value = translations
     for part in parts:
@@ -49,7 +47,6 @@ def get_text(key, lang_code=None, **kwargs):
             value = key
             break
     
-    # Format with kwargs if provided
     if kwargs and isinstance(value, str):
         try:
             return value.format(**kwargs)
@@ -73,3 +70,31 @@ def language_selector():
         
         current_lang = st.session_state.get("language", "en")
         st.caption(f"Current: {LANGUAGES[current_lang]['name']}")
+
+def get_theme():
+    """Get current theme from session state"""
+    if "theme" not in st.session_state:
+        st.session_state.theme = "light"
+    return st.session_state.theme
+
+def set_theme(theme):
+    """Set theme in session state"""
+    st.session_state.theme = theme
+
+def theme_selector():
+    """Display theme selector in sidebar"""
+    current_theme = get_theme()
+    
+    st.markdown("### 🎨 Theme")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("☀️ Light", key="theme_light", use_container_width=True):
+            set_theme("light")
+            st.rerun()
+    with col2:
+        if st.button("🌙 Dark", key="theme_dark", use_container_width=True):
+            set_theme("dark")
+            st.rerun()
+    
+    st.caption(f"Current: {'☀️ Light' if current_theme == 'light' else '🌙 Dark'} Mode")
