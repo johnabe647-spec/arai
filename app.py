@@ -3,6 +3,7 @@ import pandas as pd
 import tempfile
 import os
 from datetime import datetime, time
+import time as time_module
 from supabase import create_client as supabase_create_client
 from auth import register_firm, login_user, get_firm_audits, save_audit, get_firm_stats, register_user_for_existing_firm
 from report_generator import generate_audit_pdf
@@ -20,6 +21,7 @@ from notifications import create_audit_notifications, display_notification_cente
 from translator import get_text, language_selector, get_theme, theme_selector
 from lemonsqueezy_integration import display_payment_options, handle_checkout_success
 from bank_integration import display_bank_integration_dashboard
+from batch_processor import display_batch_upload_interface
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -51,7 +53,6 @@ current_theme = get_theme()
 if current_theme == "dark":
     css = """
     <style>
-        /* Dark theme variables */
         .stApp {
             background-color: #1e1e2e;
         }
@@ -1040,6 +1041,11 @@ else:
                             st.rerun()
                         else:
                             st.error(f"Error: {result}")
+            
+            # Batch Processing
+            st.markdown("---")
+            display_batch_upload_interface(st.session_state.firm_id, st.session_state.user_email)
+            
         else:
             st.info(get_text("subscription.advanced_analytics_required"))
             st.markdown("**Features include:**")
