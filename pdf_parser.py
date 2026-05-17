@@ -4,7 +4,10 @@ import re
 from datetime import datetime
 
 def parse_bank_statement(pdf_path, bank_name=None):
-    """Extract transactions from PDF bank statements"""
+    """
+    Extract transactions from PDF bank statements.
+    Supports 15+ African banks.
+    """
     print(f"📄 Parsing PDF: {pdf_path}")
     transactions = []
     
@@ -19,12 +22,12 @@ def parse_bank_statement(pdf_path, bank_name=None):
         print(f"❌ Cannot read PDF: {e}")
         return pd.DataFrame()
     
-    # Auto-detect bank
+    # Auto-detect bank if not specified
     if not bank_name:
         bank_name = detect_bank(full_text)
         print(f"📍 Detected bank: {bank_name}")
     
-    # Parse based on bank format
+    # Parser mapping for all supported banks
     parsers = {
         "gtbank": parse_gtbank,
         "standard_bank_za": parse_standard_bank_sa,
@@ -32,15 +35,17 @@ def parse_bank_statement(pdf_path, bank_name=None):
         "kcb": parse_kcb,
         "nmb_zim": parse_nmb_zimbabwe,
         "firstbank_ng": parse_firstbank_nigeria,
-        "fnb_za": parse_fnb_south_africa,
-        "mcb_mu": parse_mcb_mauritius,
-        "coop_ke": parse_coop_kenya,
-        "cbz_zim": parse_cbz_zimbabwe,
-        "uba_ng": parse_uba_nigeria,
+        "ubanigeria": parse_ubanigeria,
         "zenith_ng": parse_zenith_nigeria,
-        "nedbank_za": parse_nedbank_sa,
-        "equity_ke": parse_equity_kenya,
-        "sbm_mu": parse_sbm_mauritius,
+        "fnb_southafrica": parse_fnb_southafrica,
+        "nedbank_southafrica": parse_nedbank_southafrica,
+        "capitec_southafrica": parse_capitec_southafrica,
+        "mcb_mauritius": parse_mcb_mauritius,
+        "sbm_mauritius": parse_sbm_mauritius,
+        "cbz_zimbabwe": parse_cbz_zimbabwe,
+        "steward_zimbabwe": parse_steward_zimbabwe,
+        "equity_kenya": parse_equity_kenya,
+        "cooperative_kenya": parse_cooperative_kenya,
     }
     
     parser = parsers.get(bank_name, parse_generic)
@@ -55,7 +60,7 @@ def parse_bank_statement(pdf_path, bank_name=None):
     return df
 
 def detect_bank(text):
-    """Identify bank from PDF text (expanded)"""
+    """Identify bank from PDF text (expanded to 15+ banks)"""
     text = text.lower()
     
     # Nigerian banks
@@ -64,7 +69,7 @@ def detect_bank(text):
     if "first bank" in text or "firstbank" in text:
         return "firstbank_ng"
     if "uba" in text or "united bank for africa" in text:
-        return "uba_ng"
+        return "ubanigeria"
     if "zenith" in text or "zenith bank" in text:
         return "zenith_ng"
     if "access bank" in text:
@@ -76,208 +81,38 @@ def detect_bank(text):
     if "absa" in text:
         return "absa_za"
     if "fnb" in text or "first national bank" in text:
-        return "fnb_za"
+        return "fnb_southafrica"
     if "nedbank" in text:
-        return "nedbank_za"
+        return "nedbank_southafrica"
     if "capitec" in text:
-        return "capitec_za"
+        return "capitec_southafrica"
     
     # Kenyan banks
     if "kcb" in text or "kenya commercial bank" in text:
         return "kcb"
-    if "co-operative bank" in text or "coop bank" in text:
-        return "coop_ke"
     if "equity bank" in text:
-        return "equity_ke"
+        return "equity_kenya"
+    if "co-operative bank" in text or "coop bank" in text:
+        return "cooperative_kenya"
     
     # Mauritian banks
     if "mcb" in text or "mauritius commercial bank" in text:
-        return "mcb_mu"
+        return "mcb_mauritius"
     if "sbm" in text or "state bank of mauritius" in text:
-        return "sbm_mu"
+        return "sbm_mauritius"
     
     # Zimbabwean banks
     if "nmb bank" in text or "nmb zimbabwe" in text:
         return "nmb_zim"
     if "cbz" in text or "central bank of zimbabwe" in text:
-        return "cbz_zim"
+        return "cbz_zimbabwe"
     if "steward bank" in text:
-        return "steward_zim"
+        return "steward_zimbabwe"
     
     return "generic"
 
 # ============================================
-# NEW PARSERS FOR ADDITIONAL BANKS
-# ============================================
-
-def parse_firstbank_nigeria(text):
-    """First Bank Nigeria parser"""
-    transactions = []
-    # Pattern: 25-JAN-2025 | Description | NGN 10,000.00
-    pattern = r'(\d{2}-[A-Za-z]{3}-\d{4})\s+(.+?)\s+(?:NGN|₦)?\s*([\d,]+\.\d{2})'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%d-%b-%Y'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit'
-        })
-    return transactions
-
-def parse_fnb_south_africa(text):
-    """FNB South Africa parser"""
-    transactions = []
-    # Pattern: 2025/01/25 | Description | R 1,000.00
-    pattern = r'(\d{4}/\d{2}/\d{2})\s+(.+?)\s+(?:R)?\s*([\d,]+\.\d{2})'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%Y/%m/%d'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit'
-        })
-    return transactions
-
-def parse_mcb_mauritius(text):
-    """MCB Mauritius parser"""
-    transactions = []
-    # Pattern: 25/01/2025 | Description | MUR 1,000.00 | DR/CR
-    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+[\d,]+\s+([\d,]+\.\d{2})\s+(DR|CR)'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str, trans_type = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%d/%m/%Y'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit' if trans_type == 'DR' else 'credit'
-        })
-    return transactions
-
-def parse_coop_kenya(text):
-    """Co-operative Bank Kenya parser"""
-    transactions = []
-    # Pattern: 25/01/2025 | Description | KES 1,000.00
-    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(?:KES)?\s*([\d,]+\.\d{2})'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%d/%m/%Y'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit'
-        })
-    return transactions
-
-def parse_cbz_zimbabwe(text):
-    """CBZ Zimbabwe parser"""
-    transactions = []
-    # Pattern: 25 Jan 2025 | Description | ZWL 1,000.00 | DR
-    pattern = r'(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\s+(.+?)\s+[\d,]+\s+([\d,]+\.\d{2})\s+(DR|CR)'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str, trans_type = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%d %b %Y'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit' if trans_type == 'DR' else 'credit'
-        })
-    return transactions
-
-def parse_uba_nigeria(text):
-    """UBA Nigeria parser"""
-    transactions = []
-    pattern = r'(\d{2}-[A-Za-z]{3}-\d{4})\s+(.+?)\s+([\d,]+\.\d{2})'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%d-%b-%Y'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit'
-        })
-    return transactions
-
-def parse_zenith_nigeria(text):
-    """Zenith Bank Nigeria parser"""
-    transactions = []
-    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,]+\.\d{2})\s+(DR|CR)'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str, trans_type = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%d/%m/%Y'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit' if trans_type == 'DR' else 'credit'
-        })
-    return transactions
-
-def parse_nedbank_sa(text):
-    """Nedbank South Africa parser"""
-    transactions = []
-    pattern = r'(\d{4}-\d{2}-\d{2})\s+(.+?)\s+([-]?[\d,]+\.\d{2})'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str = match
-        amount = float(amount_str.replace(',', ''))
-        transactions.append({
-            'date': datetime.strptime(date_str, '%Y-%m-%d'),
-            'description': description.strip()[:200],
-            'amount': abs(amount),
-            'type': 'debit' if amount < 0 else 'credit'
-        })
-    return transactions
-
-def parse_equity_kenya(text):
-    """Equity Bank Kenya parser"""
-    transactions = []
-    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(?:KES)?\s*([\d,]+\.\d{2})'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%d/%m/%Y'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit'
-        })
-    return transactions
-
-def parse_sbm_mauritius(text):
-    """SBM Bank Mauritius parser"""
-    transactions = []
-    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,]+\.\d{2})\s+(DR|CR)'
-    matches = re.findall(pattern, text)
-    
-    for match in matches:
-        date_str, description, amount_str, trans_type = match
-        transactions.append({
-            'date': datetime.strptime(date_str, '%d/%m/%Y'),
-            'description': description.strip()[:200],
-            'amount': float(amount_str.replace(',', '')),
-            'type': 'debit' if trans_type == 'DR' else 'credit'
-        })
-    return transactions
-
-# ============================================
-# EXISTING PARSERS (keep these)
+# EXISTING PARSERS (Keep these)
 # ============================================
 
 def parse_gtbank(text):
@@ -393,4 +228,201 @@ def parse_generic(text):
                 'amount': abs(amount),
                 'type': 'debit' if 'DR' in line.upper() else 'credit'
             })
+    return transactions
+
+# ============================================
+# NEW PARSERS FOR ADDITIONAL BANKS
+# ============================================
+
+def parse_firstbank_nigeria(text):
+    """First Bank Nigeria parser"""
+    transactions = []
+    pattern = r'(\d{2}-[A-Za-z]{3}-\d{4})\s+(.+?)\s+(?:NGN|₦)?\s*([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d-%b-%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
+    return transactions
+
+def parse_ubanigeria(text):
+    """UBA Nigeria parser"""
+    transactions = []
+    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,]+\.\d{2})\s+(DR|CR)'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str, trans_type = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d/%m/%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit' if trans_type == 'DR' else 'credit'
+        })
+    return transactions
+
+def parse_zenith_nigeria(text):
+    """Zenith Bank Nigeria parser"""
+    transactions = []
+    pattern = r'(\d{2}-[A-Za-z]{3}-\d{4})\s+(.+?)\s+([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d-%b-%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
+    return transactions
+
+def parse_fnb_southafrica(text):
+    """FNB South Africa parser"""
+    transactions = []
+    pattern = r'(\d{4}/\d{2}/\d{2})\s+(.+?)\s+(?:R)?\s*([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%Y/%m/%d'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
+    return transactions
+
+def parse_nedbank_southafrica(text):
+    """Nedbank South Africa parser"""
+    transactions = []
+    pattern = r'(\d{4}-\d{2}-\d{2})\s+(.+?)\s+([-]?[\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        amount = float(amount_str.replace(',', ''))
+        transactions.append({
+            'date': datetime.strptime(date_str, '%Y-%m-%d'),
+            'description': description.strip()[:200],
+            'amount': abs(amount),
+            'type': 'debit' if amount < 0 else 'credit'
+        })
+    return transactions
+
+def parse_capitec_southafrica(text):
+    """Capitec South Africa parser"""
+    transactions = []
+    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d/%m/%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
+    return transactions
+
+def parse_mcb_mauritius(text):
+    """MCB Mauritius parser"""
+    transactions = []
+    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,]+\.\d{2})\s+(DR|CR)'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str, trans_type = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d/%m/%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit' if trans_type == 'DR' else 'credit'
+        })
+    return transactions
+
+def parse_sbm_mauritius(text):
+    """SBM Mauritius parser"""
+    transactions = []
+    pattern = r'(\d{2}-\d{2}-\d{4})\s+(.+?)\s+([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d-%m-%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
+    return transactions
+
+def parse_cbz_zimbabwe(text):
+    """CBZ Zimbabwe parser"""
+    transactions = []
+    pattern = r'(\d{2}\s+[A-Za-z]{3}\s+\d{4})\s+(.+?)\s+([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d %b %Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
+    return transactions
+
+def parse_steward_zimbabwe(text):
+    """Steward Bank Zimbabwe parser"""
+    transactions = []
+    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d/%m/%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
+    return transactions
+
+def parse_equity_kenya(text):
+    """Equity Bank Kenya parser"""
+    transactions = []
+    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(?:KES)?\s*([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d/%m/%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
+    return transactions
+
+def parse_cooperative_kenya(text):
+    """Co-operative Bank Kenya parser"""
+    transactions = []
+    pattern = r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,]+\.\d{2})'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        date_str, description, amount_str = match
+        transactions.append({
+            'date': datetime.strptime(date_str, '%d/%m/%Y'),
+            'description': description.strip()[:200],
+            'amount': float(amount_str.replace(',', '')),
+            'type': 'debit'
+        })
     return transactions
