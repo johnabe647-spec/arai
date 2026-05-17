@@ -26,34 +26,56 @@ def load_translations(lang_code):
             _translations_cache[lang_code] = translations
             return translations
     except FileNotFoundError:
-        with open(os.path.join(os.path.dirname(__file__), "locales", "en.json"), 'r', encoding='utf-8') as f:
-            translations = json.load(f)
-            _translations_cache[lang_code] = translations
-            return translations
+        # Fallback to English
+        try:
+            with open(os.path.join(os.path.dirname(__file__), "locales", "en.json"), 'r', encoding='utf-8') as f:
+                translations = json.load(f)
+                _translations_cache[lang_code] = translations
+                return translations
+        except:
+            # Return empty dict if even English fails
+            return {}
 
 def get_text(key, lang_code=None, **kwargs):
-    """Get translated text for a given key"""
+    """Get translated text for a given key.
+    
+    Args:
+        key: Dot-notation key (e.g., "login.title")
+        lang_code: Language code (en, fr, pt, sw). Defaults to session state.
+        **kwargs: Format arguments for the text
+    
+    Returns:
+        Translated text or the key itself if not found
+    """
     if lang_code is None:
         lang_code = st.session_state.get("language", "en")
     
     translations = load_translations(lang_code)
     
+    # Navigate nested keys
     parts = key.split('.')
     value = translations
     for part in parts:
         if isinstance(value, dict):
-            value = value.get(part, key)
+            value = value.get(part, None)
+            if value is None:
+                # Key not found, return the original key
+                return key
         else:
-            value = key
-            break
+            return key
     
+    # If we got a dict instead of a string, return the key
+    if isinstance(value, dict):
+        return key
+    
+    # Apply formatting if kwargs provided
     if kwargs and isinstance(value, str):
         try:
             return value.format(**kwargs)
         except:
             return value
     
-    return value
+    return value if isinstance(value, str) else key
 
 def language_selector():
     """Display language selector in sidebar"""
