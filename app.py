@@ -15,6 +15,7 @@ from analytics import display_analytics_dashboard, calculate_time_saved, calcula
 from scheduler import create_schedule, get_schedules, display_schedules, delete_schedule
 from activity_logger import log_activity, display_activity_dashboard
 from api_manager import display_api_dashboard
+from email_digest import display_digest_settings
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -465,7 +466,6 @@ else:
             if ask_button and user_question:
                 with st.spinner("Thinking..."):
                     if audits:
-                        # Use latest audit for context
                         latest = audits[0]
                         audit_context = {
                             "match_rate": latest.get('match_rate', 0),
@@ -477,7 +477,6 @@ else:
                             "problem_areas": latest.get('audit_data', {}).get('problem_areas', {})
                         }
                         
-                        # Simple response without OpenAI for now
                         user_question_lower = user_question.lower()
                         
                         if "match rate" in user_question_lower:
@@ -744,7 +743,6 @@ else:
                                     
                                     if success:
                                         st.success(f"✅ Report sent to {client_email}")
-                                        # Log activity
                                         log_activity(st.session_state.firm_id, st.session_state.user_email, "send_report", {
                                             "recipient": client_email,
                                             "client_name": client_name
@@ -808,15 +806,12 @@ else:
             st.markdown("---")
             st.subheader("📅 Automated Report Scheduling")
             
-            # Get existing schedules
             schedules = get_schedules(st.session_state.firm_id)
             
-            # Display existing schedules
             if schedules:
                 st.markdown("#### Your Scheduled Reports")
                 display_schedules(schedules)
             
-            # Create new schedule
             with st.expander("➕ Create New Schedule"):
                 with st.form("schedule_form"):
                     schedule_name = st.text_input("Schedule Name", placeholder="Monthly Client Report")
@@ -971,6 +966,11 @@ else:
         # Firm Settings Tab
         with tab2:
             st.markdown("#### 🏢 Firm Settings")
+            
+            # Email Digest Settings
+            display_digest_settings(st.session_state.firm_id)
+            
+            st.markdown("---")
             st.info("Coming soon: Subscription management, billing, API keys")
             st.caption(f"Firm ID: {st.session_state.firm_id}")
         
