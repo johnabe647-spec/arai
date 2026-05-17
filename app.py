@@ -16,6 +16,7 @@ from scheduler import create_schedule, get_schedules, display_schedules, delete_
 from activity_logger import log_activity, display_activity_dashboard
 from api_manager import display_api_dashboard
 from email_digest import display_digest_settings
+from notifications import create_notification, display_notification_center
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -206,6 +207,9 @@ else:
         st.markdown("Share this link with your clients:")
         st.code("https://arai-client-portal.streamlit.app", language="text")
         st.caption("Clients can view their audit reports here")
+        
+        # Notification Center
+        display_notification_center(st.session_state.firm_id, st.session_state.user_email)
         
         st.markdown("---")
         
@@ -625,6 +629,30 @@ else:
                                     "match_rate": result['summary']['match_rate'],
                                     "transaction_count": len(bank_df)
                                 })
+                                
+                                # Create notifications
+                                create_notification(
+                                    firm_id=st.session_state.firm_id,
+                                    title="Audit Complete",
+                                    message=f"Audit of {bank_file.name} completed with {result['summary']['match_rate']:.1%} match rate",
+                                    notification_type="success"
+                                )
+                                
+                                if len(anomalies) > 0:
+                                    create_notification(
+                                        firm_id=st.session_state.firm_id,
+                                        title="Anomalies Detected",
+                                        message=f"Found {len(anomalies)} suspicious transactions requiring review",
+                                        notification_type="warning"
+                                    )
+                                
+                                if fraud_risk > 70:
+                                    create_notification(
+                                        firm_id=st.session_state.firm_id,
+                                        title="High Fraud Risk Alert",
+                                        message=f"Fraud risk score of {fraud_risk:.0f}% detected. Immediate review recommended.",
+                                        notification_type="error"
+                                    )
                                 
                                 os.unlink(bank_path)
                                 os.unlink(ledger_path)
