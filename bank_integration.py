@@ -97,10 +97,9 @@ def display_bank_integration_dashboard(firm_id, user_role):
         st.markdown("- Automated daily updates")
         st.markdown("- Reduced manual work")
         
-        # Fix: Use session state to switch to Subscription tab
+        # Use query parameters to redirect to subscription tab
         if st.button("💳 Upgrade to Enterprise", key="upgrade_bank_integration"):
-            st.session_state.page = "Settings"
-            st.session_state.settings_tab = "Subscription"
+            st.query_params["tab"] = "subscription"
             st.rerun()
         return
     

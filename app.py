@@ -34,10 +34,6 @@ st.set_page_config(
 if "language" not in st.session_state:
     st.session_state.language = "en"
 
-# Initialize settings tab in session state
-if "settings_tab" not in st.session_state:
-    st.session_state.settings_tab = "Team Management"
-
 # Handle checkout success
 handle_checkout_success()
 
@@ -893,11 +889,13 @@ else:
             "🏦 Bank Integration"
         ]
         
-        # Determine which tab to show based on session state
+        # Check query params for tab selection
+        query_params = st.query_params
         default_index = 0
-        if st.session_state.settings_tab == "Subscription":
+        if "tab" in query_params and query_params["tab"] == "subscription":
             default_index = 2  # Subscription tab index
-            st.session_state.settings_tab = "Team Management"  # Reset after use
+            # Clear the query param after use
+            st.query_params.clear()
         
         tabs = st.tabs(tab_names)
         
