@@ -451,6 +451,55 @@ else:
         else:
             st.info("No audits yet. Run your first audit!")
         
+        # AI Audit Assistant
+        st.markdown("---")
+        st.subheader("🤖 AI Audit Assistant")
+        
+        with st.expander("Ask ARAI anything about your audits"):
+            user_question = st.text_input("Ask a question", placeholder="e.g., Show me all high-risk clients", key="ai_question")
+            
+            col1, col2 = st.columns([1, 5])
+            with col1:
+                ask_button = st.button("Ask AI", key="ask_ai_button")
+            
+            if ask_button and user_question:
+                with st.spinner("Thinking..."):
+                    if audits:
+                        # Use latest audit for context
+                        latest = audits[0]
+                        audit_context = {
+                            "match_rate": latest.get('match_rate', 0),
+                            "matched": latest.get('audit_data', {}).get('matched', 0),
+                            "unmatched_bank": latest.get('audit_data', {}).get('unmatched_bank', 0),
+                            "unmatched_ledger": latest.get('audit_data', {}).get('unmatched_ledger', 0),
+                            "anomalies": latest.get('audit_data', {}).get('anomalies', 0),
+                            "fraud_risk": latest.get('fraud_risk', 0),
+                            "problem_areas": latest.get('audit_data', {}).get('problem_areas', {})
+                        }
+                        
+                        # Simple response without OpenAI for now
+                        user_question_lower = user_question.lower()
+                        
+                        if "match rate" in user_question_lower:
+                            answer = f"The match rate for the latest audit is {audit_context['match_rate']:.1%}."
+                        elif "fraud" in user_question_lower:
+                            answer = f"The fraud risk score is {audit_context['fraud_risk']:.0f}%."
+                        elif "anomalies" in user_question_lower or "anomaly" in user_question_lower:
+                            answer = f"There are {audit_context['anomalies']} anomalies detected in the latest audit."
+                        elif "problem" in user_question_lower or "risk" in user_question_lower or "area" in user_question_lower:
+                            areas = ', '.join(list(audit_context['problem_areas'].keys())[:3])
+                            answer = f"Problem areas identified: {areas if areas else 'None detected'}."
+                        elif "matched" in user_question_lower or "match" in user_question_lower:
+                            answer = f"Successfully matched {audit_context['matched']} transactions."
+                        elif "unmatched" in user_question_lower:
+                            answer = f"There are {audit_context['unmatched_bank']} unmatched bank transactions and {audit_context['unmatched_ledger']} unmatched ledger entries."
+                        else:
+                            answer = f"I can help you understand your audit data. Try asking about:\n- Match rate\n- Fraud risk\n- Anomalies\n- Problem areas\n- Matched/unmatched transactions"
+                        
+                        st.success(f"🤖 {answer}")
+                    else:
+                        st.info("Run an audit first to ask questions about it")
+        
         st.markdown("---")
         st.markdown("### Quick Actions")
         
