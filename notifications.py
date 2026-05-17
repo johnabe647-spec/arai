@@ -11,7 +11,7 @@ def create_notification(firm_id, title, message, notification_type="info", user_
     supabase = get_supabase()
     
     try:
-        print(f"Debug: Creating notification - firm_id={firm_id}, title={title}, type={notification_type}")
+        print(f"Debug: Creating notification - firm_id={firm_id}, title={title}")
         
         result = supabase.table("notifications").insert({
             "firm_id": firm_id,
@@ -23,7 +23,7 @@ def create_notification(firm_id, title, message, notification_type="info", user_
             "is_read": False
         }).execute()
         
-        print(f"Debug: Notification created successfully - {result.data}")
+        print(f"Debug: Notification created: {result.data}")
         return True, result.data[0] if result.data else None
     except Exception as e:
         print(f"Debug: Error creating notification: {e}")
@@ -42,7 +42,6 @@ def get_notifications(firm_id, user_id=None, limit=50, unread_only=False):
             query = query.eq("is_read", False)
         
         result = query.order("created_at", desc=True).limit(limit).execute()
-        print(f"Debug: get_notifications returned {len(result.data) if result.data else 0} notifications")
         return result.data if result.data else []
     except Exception as e:
         print(f"Debug: Error in get_notifications: {e}")
@@ -54,7 +53,6 @@ def mark_notification_read(notification_id):
     
     try:
         supabase.table("notifications").update({"is_read": True}).eq("id", notification_id).execute()
-        print(f"Debug: Notification {notification_id} marked as read")
         return True
     except Exception as e:
         print(f"Debug: Error marking notification read: {e}")
@@ -69,8 +67,7 @@ def mark_all_notifications_read(firm_id, user_id=None):
         if user_id:
             query = query.eq("user_id", user_id)
         
-        result = query.execute()
-        print(f"Debug: All notifications marked as read for firm {firm_id}")
+        query.execute()
         return True
     except Exception as e:
         print(f"Debug: Error marking all notifications read: {e}")
@@ -82,7 +79,6 @@ def delete_notification(notification_id):
     
     try:
         supabase.table("notifications").delete().eq("id", notification_id).execute()
-        print(f"Debug: Notification {notification_id} deleted")
         return True
     except Exception as e:
         print(f"Debug: Error deleting notification: {e}")
@@ -91,21 +87,15 @@ def delete_notification(notification_id):
 def display_notification_center(firm_id, user_email):
     """Display notification center in the sidebar"""
     
-    print(f"Debug: display_notification_center called - firm_id={firm_id}, user_email={user_email}")
-    
     # Get user_id from email
     supabase = get_supabase()
     user_result = supabase.table("users").select("id").eq("email", user_email).execute()
     user_id = user_result.data[0]["id"] if user_result.data else None
     
-    print(f"Debug: Found user_id={user_id}")
-    
     # Get all notifications
     notifications = get_notifications(firm_id, user_id, limit=20)
     unread_notifications = [n for n in notifications if not n.get('is_read', False)]
     unread_count = len(unread_notifications)
-    
-    print(f"Debug: Total notifications={len(notifications)}, Unread={unread_count}")
     
     # Display header with count
     if unread_count > 0:
@@ -176,8 +166,6 @@ def display_notification_center(firm_id, user_email):
 def create_audit_notifications(firm_id, filename, match_rate, anomaly_count, fraud_risk):
     """Create notifications based on audit results"""
     
-    print(f"Debug: create_audit_notifications called - firm_id={firm_id}, filename={filename}")
-    
     # Create audit completion notification
     create_notification(
         firm_id=firm_id,
@@ -203,5 +191,3 @@ def create_audit_notifications(firm_id, filename, match_rate, anomaly_count, fra
             message=f"Fraud risk score of {fraud_risk:.0f}% detected. Immediate review recommended.",
             notification_type="error"
         )
-    
-    print("Debug: All notifications created")
