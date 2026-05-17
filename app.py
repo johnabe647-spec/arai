@@ -34,6 +34,10 @@ st.set_page_config(
 if "language" not in st.session_state:
     st.session_state.language = "en"
 
+# Initialize settings tab in session state
+if "settings_tab" not in st.session_state:
+    st.session_state.settings_tab = "Team Management"
+
 # Handle checkout success
 handle_checkout_success()
 
@@ -879,17 +883,26 @@ else:
     elif st.session_state.page == "Settings":
         st.markdown(f"### ⚙️ {get_text('settings.title')}")
         
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        # Define tab names
+        tab_names = [
             get_text("settings.team_management"),
             get_text("settings.firm_settings"),
             get_text("settings.subscription"),
             get_text("settings.branding"),
             get_text("settings.api"),
             "🏦 Bank Integration"
-        ])
+        ]
         
-        # Team Management Tab
-        with tab1:
+        # Determine which tab to show based on session state
+        default_index = 0
+        if st.session_state.settings_tab == "Subscription":
+            default_index = 2  # Subscription tab index
+            st.session_state.settings_tab = "Team Management"  # Reset after use
+        
+        tabs = st.tabs(tab_names)
+        
+        # Team Management Tab (index 0)
+        with tabs[0]:
             st.markdown(f"#### 👥 {get_text('settings.team_management')}")
             
             if check_feature_access(st.session_state.firm_id, "team_members"):
@@ -958,20 +971,20 @@ else:
                     st.session_state.page = "Settings"
                     st.rerun()
         
-        # Firm Settings Tab
-        with tab2:
+        # Firm Settings Tab (index 1)
+        with tabs[1]:
             st.markdown(f"#### 🏢 {get_text('settings.firm_settings')}")
             display_digest_settings(st.session_state.firm_id)
             st.markdown("---")
             st.info(get_text("settings.coming_soon"))
             st.caption(f"{get_text('settings.firm_id')}: {st.session_state.firm_id}")
         
-        # Subscription Tab
-        with tab3:
+        # Subscription Tab (index 2)
+        with tabs[2]:
             display_payment_options(st.session_state.firm_id, st.session_state.user_email)
         
-        # Branding Tab
-        with tab4:
+        # Branding Tab (index 3)
+        with tabs[3]:
             st.markdown(f"#### 🎨 {get_text('settings.branding')}")
             
             if check_feature_access(st.session_state.firm_id, "custom_branding"):
@@ -1062,8 +1075,8 @@ else:
                     st.session_state.page = "Settings"
                     st.rerun()
         
-        # API Tab
-        with tab5:
+        # API Tab (index 4)
+        with tabs[4]:
             if check_feature_access(st.session_state.firm_id, "api_access"):
                 display_api_dashboard(st.session_state.firm_id)
             else:
@@ -1079,8 +1092,8 @@ else:
                     st.session_state.page = "Settings"
                     st.rerun()
         
-        # Bank Integration Tab
-        with tab6:
+        # Bank Integration Tab (index 5)
+        with tabs[5]:
             display_bank_integration_dashboard(st.session_state.firm_id, st.session_state.user_role)
     
     st.markdown("---")

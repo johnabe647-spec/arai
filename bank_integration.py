@@ -34,7 +34,6 @@ def save_bank_connection(firm_id, bank_code, account_name, account_number, acces
     """Save a bank connection to database"""
     supabase = get_supabase()
     
-    # Create table if needed - run this SQL separately
     try:
         result = supabase.table("bank_connections").insert({
             "firm_id": firm_id,
@@ -64,9 +63,7 @@ def delete_bank_connection(connection_id, firm_id):
 def sync_bank_transactions(connection_id, days_back=90):
     """Sync transactions from connected bank account"""
     # This is a placeholder - actual implementation depends on the bank API
-    
     # For now, return mock data for testing
-    # In production, you would call the bank's API endpoint
     
     mock_transactions = []
     start_date = datetime.now() - timedelta(days=days_back)
@@ -100,8 +97,10 @@ def display_bank_integration_dashboard(firm_id, user_role):
         st.markdown("- Automated daily updates")
         st.markdown("- Reduced manual work")
         
-        if st.button("Upgrade to Enterprise", key="upgrade_bank"):
+        # Fix: Use session state to switch to Subscription tab
+        if st.button("💳 Upgrade to Enterprise", key="upgrade_bank_integration"):
             st.session_state.page = "Settings"
+            st.session_state.settings_tab = "Subscription"
             st.rerun()
         return
     
