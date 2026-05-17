@@ -10,6 +10,7 @@ from email_sender import send_report_email
 from team import get_invite, get_team_members, remove_team_member, create_invite
 from subscription import get_firm_subscription, get_subscription_tiers, update_subscription, check_feature_access
 import plotly.express as px
+import plotly.graph_objects as go
 
 # Page config
 st.set_page_config(
@@ -211,7 +212,7 @@ else:
         
         # Get firm statistics
         stats = get_firm_stats(st.session_state.firm_id)
-        audits = get_firm_audits(st.session_state.firm_id, limit=50)
+        audits = get_firm_audits(st.session_state.firm_id, limit=100)
         
         # Top metrics row
         col1, col2, col3, col4 = st.columns(4)
@@ -222,7 +223,7 @@ else:
         
         st.markdown("---")
         
-        # Charts Row
+        # Row 1: Main Charts
         col1, col2 = st.columns(2)
         
         with col1:
@@ -240,6 +241,10 @@ else:
                     fig.update_traces(line_color='#1f77b4', line_width=3)
                     fig.update_layout(showlegend=False, height=300)
                     st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Show forecast
+                    if len(df) >= 3:
+                        st.caption("📊 Trend: " + ("Improving 📈" if df['match_rate'].iloc[-1] > df['match_rate'].iloc[0] else "Declining 📉"))
                 else:
                     st.info("Run more audits to see trend data")
             else:
@@ -269,12 +274,105 @@ else:
                              color_discrete_map=colors)
                 fig.update_layout(showlegend=False, height=300)
                 st.plotly_chart(fig, use_container_width=True)
+                
+                # Risk summary
+                high_count = risk_levels.count('High')
+                if high_count > 0:
+                    st.warning(f"⚠️ {high_count} high-risk audits detected")
             else:
                 st.info("Run at least 3 audits to see risk distribution")
         
         st.markdown("---")
         
-        # Recent Activity Feed
+        # Row 2: Advanced Analytics
+        st.subheader("📊 Advanced Analytics")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("#### ⏱️ Time Saved")
+            if stats['total_time_saved'] > 0:
+                fig = px.pie(values=[stats['total_time_saved'], max(1, 100 - stats['total_time_saved'])],
+                             names=['Time Saved', 'Remaining'],
+                             title=f"Total: {stats['total_time_saved']} hours",
+                             color_discrete_sequence=['#28a745', '#e0e0e0'])
+                fig.update_layout(height=250, showlegend=True)
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(f"💰 Estimated value: ${stats['total_time_saved'] * 50:,} (at $50/hour)")
+            else:
+                st.info("Run audits to see time saved")
+        
+        with col2:
+            st.markdown("#### 📊 Audit Quality Score")
+            if len(audits) > 0:
+                quality_scores = []
+                for a in audits:
+                    match = a.get('match_rate', 0)
+                    fraud = a.get('fraud_risk', 0)
+                    score = (match * 0.7) + ((1 - fraud/100) * 0.3)
+                    quality_scores.append(score)
+                
+                avg_quality = sum(quality_scores) / len(quality_scores)
+                
+                fig = go.Figure(go.Indicator(
+                    mode = "gauge+number",
+                    value = avg_quality * 100,
+                    title = {'text': "Quality Score"},
+                    domain = {'x': [0, 1], 'y': [0, 1]},
+                    gauge = {
+                        'axis': {'range': [None, 100]},
+                        'bar': {'color': "#1f77b4"},
+                        'steps': [
+                            {'range': [0, 50], 'color': "#ff6b6b"},
+                            {'range': [50, 75], 'color': "#ffa500"},
+                            {'range': [75, 100], 'color': "#4ecdc4"}
+                        ],
+                        'threshold': {
+                            'line': {'color': "red", 'width': 4},
+                            'thickness': 0.75,
+                            'value': avg_quality * 100
+                        }
+                    }
+                ))
+                fig.update_layout(height=250)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                if avg_quality >= 0.75:
+                    st.success("Excellent audit quality")
+                elif avg_quality >= 0.5:
+                    st.info("Good audit quality")
+                else:
+                    st.warning("Room for improvement")
+            else:
+                st.info("Run audits to see quality score")
+        
+        with col3:
+            st.markdown("#### 🏆 Performance Summary")
+            if len(audits) > 0:
+                best_audit = max(audits, key=lambda x: x.get('match_rate', 0))
+                worst_audit = min(audits, key=lambda x: x.get('match_rate', 0))
+                
+                st.metric("Best Match Rate", f"{best_audit.get('match_rate', 0):.1%}")
+                st.caption(f"📁 {best_audit.get('filename', 'N/A')[:30]}")
+                
+                st.metric("Worst Match Rate", f"{worst_audit.get('match_rate', 0):.1%}")
+                st.caption(f"📁 {worst_audit.get('filename', 'N/A')[:30]}")
+                
+                if audits:
+                    latest = audits[0]
+                    fraud = latest.get('fraud_risk', 0)
+                    if fraud >= 70:
+                        st.error(f"🚨 Latest audit: {fraud:.0f}% fraud risk")
+                    elif fraud >= 40:
+                        st.warning(f"⚠️ Latest audit: {fraud:.0f}% fraud risk")
+                    else:
+                        st.success(f"✅ Latest audit: {fraud:.0f}% fraud risk")
+            else:
+                st.info("Run audits to see summary")
+        
+        st.markdown("---")
+        
+        # Row 3: Recent Activity
         st.subheader("📋 Recent Activity")
         
         if audits:
@@ -378,7 +476,6 @@ else:
                                 bank_filename = bank_file.name.lower()
                                 
                                 if bank_filename.endswith('.pdf'):
-                                    # Check if PDF parsing is available on current plan
                                     if not check_feature_access(st.session_state.firm_id, "pdf_parsing"):
                                         st.error("PDF parsing is only available on Professional and Enterprise plans. Please upgrade.")
                                         st.stop()
@@ -498,7 +595,7 @@ else:
                 
                 # Email Section (only for Professional and Enterprise)
                 current_sub = get_firm_subscription(st.session_state.firm_id)
-                if current_sub.get('subscription_tier') != 'free':
+                if check_feature_access(st.session_state.firm_id, "email_reports"):
                     st.markdown("---")
                     st.subheader("📧 Email Report to Client")
                     
@@ -580,10 +677,7 @@ else:
         with tab1:
             st.markdown("#### 👥 Team Members")
             
-            # Check subscription for team members feature
-            current_sub = get_firm_subscription(st.session_state.firm_id)
-            
-            if current_sub.get('subscription_tier') != 'free':
+            if check_feature_access(st.session_state.firm_id, "team_members"):
                 if st.session_state.user_role == "owner":
                     team_members = get_team_members(st.session_state.firm_id)
                     
@@ -639,7 +733,7 @@ else:
             else:
                 st.info("👥 Team management is available on Professional and Enterprise plans. Upgrade to invite team members.")
                 if st.button("View Subscription Plans"):
-                    st.session_state.subscription_tab = "Subscription"
+                    st.session_state.page = "Settings"
                     st.rerun()
         
         # Firm Settings Tab
@@ -669,7 +763,6 @@ else:
             st.markdown("---")
             st.markdown("### Available Plans")
             
-            # Display plans in columns
             col1, col2, col3 = st.columns(3)
             
             for idx, (tier_id, tier) in enumerate(tiers.items()):
@@ -697,8 +790,6 @@ else:
                                 update_subscription(st.session_state.firm_id, "free")
                                 st.success("Downgraded to Free plan")
                                 st.rerun()
-                        else:
-                            st.button("Current Plan", disabled=True)
                     else:
                         if st.button(f"Upgrade to {tier['name']}", key=f"btn_{tier_id}"):
                             st.info(f"Payment integration coming soon. Please contact sales for {tier['name']} plan.")
