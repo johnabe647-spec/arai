@@ -18,6 +18,7 @@ from api_manager import display_api_dashboard
 from email_digest import display_digest_settings
 from notifications import create_audit_notifications, display_notification_center
 from translator import get_text, language_selector
+from lemonsqueezy_integration import display_payment_options, handle_checkout_success
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -31,6 +32,9 @@ st.set_page_config(
 # Initialize language in session state
 if "language" not in st.session_state:
     st.session_state.language = "en"
+
+# Handle checkout success
+handle_checkout_success()
 
 # Custom CSS
 st.markdown("""
@@ -962,58 +966,7 @@ else:
         
         # Subscription Tab
         with tab3:
-            st.markdown(f"#### 💳 {get_text('subscription.title')}")
-            
-            current_sub = get_firm_subscription(st.session_state.firm_id)
-            current_tier = current_sub.get("subscription_tier", "free")
-            tiers = get_subscription_tiers()
-            
-            st.markdown(f"**{get_text('subscription.current_plan')}:** {tiers[current_tier]['name']}")
-            
-            if current_tier == "free":
-                st.info(get_text("subscription.free_plan_info"))
-                st.caption(get_text("subscription.free_plan_features"))
-            elif current_tier == "professional":
-                st.success(get_text("subscription.professional_plan_info"))
-            else:
-                st.success(get_text("subscription.enterprise_plan_info"))
-            
-            st.markdown("---")
-            st.markdown(f"### {get_text('subscription.available_plans')}")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            for idx, (tier_id, tier) in enumerate(tiers.items()):
-                col = [col1, col2, col3][idx]
-                with col:
-                    st.markdown(f"#### {tier['name']}")
-                    if tier['price'] > 0:
-                        st.markdown(f"**${tier['price']}/month**")
-                    else:
-                        st.markdown("**Free**")
-                    st.markdown("---")
-                    for feature in tier['features']:
-                        if feature.startswith("✅"):
-                            st.markdown(f"<span style='color:green'>{feature}</span>", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"<span style='color:#999'>{feature}</span>", unsafe_allow_html=True)
-                    
-                    st.markdown("---")
-                    
-                    if tier_id == current_tier:
-                        st.button(get_text("subscription.current_plan"), disabled=True, key=f"current_{tier_id}_{idx}")
-                    elif tier_id == "free":
-                        if current_tier != "free":
-                            if st.button(get_text("subscription.downgrade"), key=f"btn_free_{idx}"):
-                                update_subscription(st.session_state.firm_id, "free")
-                                st.success(get_text("subscription.downgraded"))
-                                log_activity(st.session_state.firm_id, st.session_state.user_email, "change_subscription", {
-                                    "new_plan": "free"
-                                })
-                                st.rerun()
-                    else:
-                        if st.button(get_text("subscription.upgrade"), key=f"btn_upgrade_{tier_id}_{idx}"):
-                            st.info(get_text("subscription.payment_coming_soon"))
+            display_payment_options(st.session_state.firm_id, st.session_state.user_email)
         
         # Branding Tab
         with tab4:
