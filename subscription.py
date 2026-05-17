@@ -39,27 +39,37 @@ def check_feature_access(firm_id, feature):
     result = supabase.table("firms").select("subscription_tier").eq("id", firm_id).execute()
     
     if result.data:
-        tier = result.data[0].get("subscription_tier", "free")
+        tier = result.data[0].get("subscription_tier", "free").lower()
     else:
         tier = "free"
     
-    # Feature access by tier
+    print(f"Debug: check_feature_access - firm_id={firm_id}, feature={feature}, tier={tier}")
+    
+    # Feature access by tier - ENTERPRISE has access to EVERYTHING
+    if tier == "enterprise":
+        return True
+    
+    # For non-enterprise, check specific features
     features = {
-        "basic_reconciliation": ["free", "professional", "enterprise"],
-        "pdf_parsing": ["professional", "enterprise"],
-        "unlimited_audits": ["professional", "enterprise"],
-        "team_members": ["professional", "enterprise"],
-        "client_portal": ["enterprise"],
-        "api_access": ["enterprise"],
-        "priority_support": ["enterprise"],
-        "email_reports": ["professional", "enterprise"],
-        "custom_branding": ["enterprise"],
-        "activity_log": ["professional", "enterprise"],
-        "advanced_analytics": ["professional", "enterprise"],
-        "scheduled_reports": ["professional", "enterprise"]
+        "basic_reconciliation": ["free", "professional"],
+        "pdf_parsing": ["professional"],
+        "unlimited_audits": ["professional"],
+        "team_members": ["professional"],
+        "client_portal": [],
+        "api_access": [],
+        "priority_support": [],
+        "email_reports": ["professional"],
+        "custom_branding": [],
+        "activity_log": ["professional"],
+        "advanced_analytics": ["professional"],
+        "scheduled_reports": ["professional"]
     }
     
-    return feature in features.get(feature, []) and tier in features.get(feature, [])
+    allowed_tiers = features.get(feature, [])
+    has_access = tier in allowed_tiers
+    
+    print(f"Debug: check_feature_access result = {has_access}")
+    return has_access
 
 def check_feature_access_with_prompt(firm_id, feature, feature_name=None):
     """Check feature access and show upgrade prompt if needed"""
@@ -135,21 +145,3 @@ def get_subscription_tiers():
             ]
         }
     }
-
-def get_feature_name(feature_key):
-    """Get human-readable feature name"""
-    feature_names = {
-        "basic_reconciliation": "Basic Reconciliation",
-        "pdf_parsing": "PDF Bank Parsing",
-        "unlimited_audits": "Unlimited Audits",
-        "team_members": "Team Members",
-        "client_portal": "Client Portal",
-        "api_access": "API Access",
-        "priority_support": "Priority Support",
-        "email_reports": "Email Reports",
-        "custom_branding": "Custom Branding",
-        "activity_log": "Activity Logging",
-        "advanced_analytics": "Advanced Analytics",
-        "scheduled_reports": "Scheduled Reports"
-    }
-    return feature_names.get(feature_key, feature_key.replace('_', ' ').title())
