@@ -34,6 +34,10 @@ st.set_page_config(
 if "language" not in st.session_state:
     st.session_state.language = "en"
 
+# Initialize settings tab index
+if "settings_tab_index" not in st.session_state:
+    st.session_state.settings_tab_index = 0
+
 # Handle checkout success
 handle_checkout_success()
 
@@ -889,14 +893,7 @@ else:
             "🏦 Bank Integration"
         ]
         
-        # Check query params for tab selection
-        query_params = st.query_params
-        default_index = 0
-        if "tab" in query_params and query_params["tab"] == "subscription":
-            default_index = 2  # Subscription tab index
-            # Clear the query param after use
-            st.query_params.clear()
-        
+        # Create tabs
         tabs = st.tabs(tab_names)
         
         # Team Management Tab (index 0)
@@ -1093,6 +1090,19 @@ else:
         # Bank Integration Tab (index 5)
         with tabs[5]:
             display_bank_integration_dashboard(st.session_state.firm_id, st.session_state.user_role)
+        
+        # Set the active tab based on session state
+        if st.session_state.settings_tab_index != 0:
+            # Use JavaScript to switch tabs
+            st.components.v1.html(f"""
+                <script>
+                    const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+                    if (tabs[{st.session_state.settings_tab_index}]) {{
+                        tabs[{st.session_state.settings_tab_index}].click();
+                    }}
+                </script>
+            """, height=0)
+            st.session_state.settings_tab_index = 0  # Reset
     
     st.markdown("---")
     st.caption(get_text("footer.copyright"))

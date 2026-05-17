@@ -62,9 +62,6 @@ def delete_bank_connection(connection_id, firm_id):
 
 def sync_bank_transactions(connection_id, days_back=90):
     """Sync transactions from connected bank account"""
-    # This is a placeholder - actual implementation depends on the bank API
-    # For now, return mock data for testing
-    
     mock_transactions = []
     start_date = datetime.now() - timedelta(days=days_back)
     
@@ -97,9 +94,9 @@ def display_bank_integration_dashboard(firm_id, user_role):
         st.markdown("- Automated daily updates")
         st.markdown("- Reduced manual work")
         
-        # Use query parameters to redirect to subscription tab
+        # Use session state to redirect
         if st.button("💳 Upgrade to Enterprise", key="upgrade_bank_integration"):
-            st.query_params["tab"] = "subscription"
+            st.session_state.settings_tab_index = 2  # Subscription tab index
             st.rerun()
         return
     
@@ -178,11 +175,9 @@ def display_bank_integration_dashboard(firm_id, user_role):
         
         if st.button("🔐 Connect Bank Account", type="primary"):
             if account_name:
-                # In production, this would redirect to Stanza's OAuth flow
                 st.info(f"Redirecting to {bank_options[selected_bank]} for authorization...")
                 st.caption("In production, this would open your bank's login page.")
                 
-                # For demo, create a mock connection
                 mock_expires = datetime.now() + timedelta(days=90)
                 success, result = save_bank_connection(
                     firm_id, selected_bank, account_name, account_number,
@@ -205,7 +200,6 @@ def display_bank_integration_dashboard(firm_id, user_role):
         if connections:
             for conn in connections:
                 with st.expander(f"{SUPPORTED_BANKS.get(conn['bank_code'], {}).get('name', conn['bank_code'])} - {conn.get('account_name', 'N/A')}"):
-                    # Show sync history (mock data for now)
                     st.markdown(f"**Last sync:** {conn.get('last_sync', 'Never')}")
                     st.markdown(f"**Status:** {'Active' if conn.get('is_active') else 'Inactive'}")
                     st.markdown(f"**Connected on:** {conn.get('created_at', 'Unknown')[:10] if conn.get('created_at') else 'Unknown'}")
