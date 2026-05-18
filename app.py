@@ -28,6 +28,7 @@ from usage_tracker import display_usage_dashboard, get_usage_stats
 from audit_tracker import display_audit_tracker
 from quality_trends import display_quality_trends_dashboard
 from audit_templates import display_template_library
+from receipt_ocr import display_receipt_ocr_interface
 from two_factor_auth import display_2fa_setup, get_device_id
 import plotly.express as px
 import plotly.graph_objects as go
@@ -1201,6 +1202,10 @@ else:
         # Template Library
         st.markdown("---")
         display_template_library(st.session_state.firm_id)
+        
+        # Receipt OCR
+        st.markdown("---")
+        display_receipt_ocr_interface(st.session_state.firm_id)
     
     # Activity Log Page
     elif st.session_state.page == "Activity Log":
